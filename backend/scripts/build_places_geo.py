@@ -94,8 +94,8 @@ def fill_coords(rows: list[dict]) -> None:
                 except urllib.error.HTTPError as e:
                     raise SystemExit(f"Geocoding 오류 {e.code}: {e.read().decode(errors='replace')[:200]}")
                 calls += 1
-                # 마포구 밖으로 잘못 잡힌 결과는 버림
-                hit = next((h for h in hits if "마포구" in (h.get("roadAddress", "") + h.get("jibunAddress", ""))), None)
+                # 제주 밖으로 잘못 잡힌 결과는 버림
+                hit = next((h for h in hits if "제주" in (h.get("roadAddress", "") + h.get("jibunAddress", ""))), None)
                 cache[q] = [float(hit["y"]), float(hit["x"])] if hit else None
             if cache.get(q):
                 r["lat"], r["lng"] = str(cache[q][0]), str(cache[q][1])

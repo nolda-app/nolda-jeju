@@ -76,7 +76,7 @@ def upload_image(s3, bucket: str, pid: str, image_url: str) -> str:
 def scrape_one(driver, s3, bucket: str, place: dict) -> dict:
     row = {"pid": place["pid"], "name": place["name"], "image_url": "", "status": "",
            "scraped_at": datetime.now(timezone.utc).isoformat()}
-    place_id = find_place_id(driver, f"{place['name']} 마포")
+    place_id = find_place_id(driver, f"{place['name']} 제주")
     if place_id is None:
         row["status"] = "not_found"
         return row
