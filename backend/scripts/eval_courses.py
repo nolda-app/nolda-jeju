@@ -22,10 +22,10 @@ import courses as C  # noqa: E402
 from places import load_places  # noqa: E402
 
 CASES = [
-    {"cond": {"area": "연남"}, "time_window": {"start": 12, "end": 18}, "taste": {"companion": "couple", "mood": "calm", "spend": "cafe"}},
+    {"cond": {"area": "애월"}, "time_window": {"start": 12, "end": 18}, "taste": {"companion": "couple", "mood": "calm", "spend": "cafe"}},
     {"cond": {"area": "any"}, "time_window": {"start": 18, "end": 23}, "taste": {"companion": "friends", "spend": "drink"}},
-    {"cond": {"area": "망원"}, "time_window": {"start": 10, "end": 15}, "taste": {"companion": "solo", "crowd": "quiet", "spend": "meal"}},
-    {"cond": {"area": "상암"}, "time_window": {"start": 11, "end": 19}, "taste": {"companion": "family", "mood": "active", "plan": "relaxed"}},
+    {"cond": {"area": "서귀포"}, "time_window": {"start": 10, "end": 15}, "taste": {"companion": "solo", "crowd": "quiet", "spend": "meal"}},
+    {"cond": {"area": "중문"}, "time_window": {"start": 11, "end": 19}, "taste": {"companion": "family", "mood": "active", "plan": "relaxed"}},
 ]
 PAID = {"식사", "카페", "한잔", "체험"}
 
