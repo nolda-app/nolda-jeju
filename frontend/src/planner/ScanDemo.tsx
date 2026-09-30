@@ -9,7 +9,7 @@ import { DataSourceScreen, SCAN_INTAKE_MS, SCAN_STEP_MS, ScanningScreen } from '
 
 const FAKE_YT = {
   likes: 128, subs: 42, categories: [], channels: [], tags: [], topics: [],
-  titles: ['망원동 숨은 카페 투어 브이로그', '연남동 빈티지샵 5곳 털기', '혼자 가기 좋은 전시 추천', '합정 LP바에서 보낸 저녁', '서울 야경 산책 코스', '성수 팝업 다녀왔어요'],
+  titles: ['애월 숨은 카페 투어 브이로그', '제주 소품샵 5곳 털기', '혼자 가기 좋은 전시 추천', '제주시 LP바에서 보낸 저녁', '서귀포 올레길 산책 코스', '성산 일출 보고 왔어요'],
   sub_channels: ['침착맨', '빵집지도', '전시왕', '동네산책'],
   hints: { mood: null, spend: null, pace: null, tags: ['LP바', '빈티지'], evidence: { mood: '', spend: '', pace: '', tags: '' } },
 } as YoutubeTaste
