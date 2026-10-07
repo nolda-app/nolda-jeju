@@ -25,9 +25,10 @@ import { COND, COURSES, DEFAULT_COND, FIXED_Q_KEYS, Q, label as labelOf } from '
 import type { Course } from './data'
 import { analyzeYoutubeOnly, applyPicks, build, matchCond, reportFromProfile, scanSteps } from './logic'
 import type { Picks, Report, Taste, BuiltCourse, Sources } from './logic'
+import { store } from '../app/storage'
 import './planner.css'
 
-interface AuthState {
+export interface AuthState {
   mode: 'login' | 'signup'
   name: string
   email: string
@@ -53,21 +54,6 @@ export const SCENE_LAUNCH_MS = 700 // '취향 분석 시작'을 누른 뒤 카�
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const GREEN = '#00A46E'
-// 유튜브 구글 로그인으로 페이지를 떠났다 돌아올 때 로그인·연결 선택을 이어가기 위한 임시 저장 키
-const PENDING_KEY = 'nolda:yt-pending'
-// 카카오 로그인 성공 시 백엔드가 발급한 JWT — 브라우저에 남겨서 새로고침해도 로그인 유지
-const LOGIN_TOKEN_KEY = 'nolda:login-token'
-// 유튜브 집계 결과 id — 한 번 연동하면 로그아웃 전까지 다시 구글을 거치지 않는다
-const YT_ID_KEY = 'nolda:yt-id'
-// 로그인하러 갈 때 '끝나면 어느 경로로 돌아갈지'를 적어둔다.
-// 소셜 로그인은 페이지를 통째로 새로 열어서 화면 상태가 사라지기 때문에 저장이 필요하다.
-const AFTER_LOGIN_KEY = 'nolda:after-login'
-const SAVED_KEY = 'nolda:saved-courses' // 저장한 코스(Course 전체) — 새로고침·로그인 없이도 유지
-// 로그인 성공 때마다 갱신 — 토큰이 만료돼 다시 로그인해야 할 때도 남아있어서 "마지막으로 OO로 로그인했어요" 안내에 씀
-const LAST_PROVIDER_KEY = 'nolda:last-login-provider'
-// 분석 결과·만든 코스 목록 — 새로고침해도 그 화면을 그대로 이어 보이게 (탭을 닫으면 사라짐)
-const SESSION_KEY = 'nolda:session'
-const SPLASH_KEY = 'nolda:splashed' // 로고 화면은 탭(세션)당 한 번만
 
 /*
  * 경로 = 화면. 새로고침·뒤로가기·주소 직접 입력 모두 경로만 보고 같은 화면을 그린다.
@@ -81,14 +67,11 @@ const HOME_PATH: Record<Exclude<HomeTab, 'course'>, string> = { home: '/', searc
 const AUTH_PATHS = ['/start', '/analyze', '/result', '/courses', '/saved'] // 로그인해야 들어가는 화면
 const APP_TAB: Record<string, 'search' | 'saved'> = { '/courses': 'search', '/saved': 'saved' }
 
-function readPending(): { auth: AuthState; sources: Sources } | null {
-  try {
-    const raw = sessionStorage.getItem(PENDING_KEY)
-    sessionStorage.removeItem(PENDING_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
+/** 유튜브 동의에서 돌아왔을 때 이어갈 선택 — 한 번 읽으면 지운다 */
+function readPending() {
+  const p = store.ytPending.get()
+  store.ytPending.set(null)
+  return p
 }
 
 // 소셜 로그인·유튜브 연동·옛 공유 링크(?course=)는 페이지를 새로 열고 '/?...'로 돌아온다 — 처음 한 번만 읽는다
@@ -97,16 +80,13 @@ function readEntry() {
   return { yt: q.get('yt'), ytError: q.get('yt_error'), loginToken: q.get('login_token'), loginError: q.get('login_error'), course: q.get('course') }
 }
 
-const rememberAfterLogin = (path: string) => { try { sessionStorage.setItem(AFTER_LOGIN_KEY, path) } catch { /* 기본 흐름대로 */ } }
+const rememberAfterLogin = (path: string) => store.afterLogin.set(path)
 const afterLoginPath = () => {
-  try {
-    const p = sessionStorage.getItem(AFTER_LOGIN_KEY)
-    if (p?.startsWith('/')) return p
-  } catch { /* 기본 흐름대로 */ }
-  return '/start'
+  const p = store.afterLogin.get()
+  return p?.startsWith('/') ? p : '/start'
 }
 
-interface Session {
+export interface Session {
   report: Report | null
   taste: Taste
   tags: string[]
@@ -119,9 +99,7 @@ interface Session {
   aiIds: string[]
   pool: Course[]
 }
-function readSession(): Partial<Session> {
-  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}') } catch { return {} }
-}
+const readSession = (): Partial<Session> => store.session.get() ?? {}
 
 export default function PlannerApp() {
   const location = useLocation()
@@ -140,7 +118,7 @@ export default function PlannerApp() {
     mode: 'login', name: '', email: '', pw: '', error: '', user: null, skipped: false,
     // 저장된 토큰을 처음부터 들고 시작한다. 서버 확인(fetchMe)이 늦거나 실패해도
     // 그동안 로그인 화면이 뜨지 않게 하려는 것 — 확인되면 user가 채워진다
-    token: entry.loginToken || (() => { try { return localStorage.getItem(LOGIN_TOKEN_KEY) } catch { return null } })(),
+    token: entry.loginToken || store.loginToken.get(),
   }))
   // 소셜 로그인에서 리디렉션으로 돌아왔는데 실패했을 때 보여줄 전용 화면 (폼 안 작은 에러 문구랑 별개)
   const [loginError, setLoginError] = useState<string | null>(null)
@@ -162,9 +140,7 @@ export default function PlannerApp() {
   const [cond, setCond] = useState(snap.cond ?? { ...DEFAULT_COND })
   const [sheetKey, setSheetKey] = useState<string | null>(null)
   // 저장한 코스: 이 기기(localStorage)에 보관하고, 로그인했으면 DB(saved_courses)와도 맞춤
-  const [savedInit] = useState<Course[]>(() => {
-    try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]') as Course[] } catch { return [] }
-  })
+  const [savedInit] = useState<Course[]>(() => store.savedCourses.get() ?? [])
   const [saved, setSaved] = useState<string[]>(() => savedInit.map((c) => c.id))
   const [toast, setToast] = useState('')
   const toastTimer = useRef<number | null>(null)
@@ -175,16 +151,12 @@ export default function PlannerApp() {
   }
   const [booked, setBooked] = useState<string[]>([])
   // 앱 실행 직후 로고 — 홈으로 처음 들어왔을 때만 (다른 경로·리디렉션 복귀·새로고침은 건너뜀)
-  const [splash, setSplash] = useState(() => {
-    try { return !window.location.search && window.location.pathname === '/' && !sessionStorage.getItem(SPLASH_KEY) } catch { return false }
-  })
+  const [splash, setSplash] = useState(() => !window.location.search && window.location.pathname === '/' && !store.splashed.get())
   // 연동해 둔 유튜브 집계 결과. 있으면 분석을 다시 해도 구글 동의를 또 받지 않는다
-  const [ytId, setYtIdState] = useState<string | null>(() => {
-    try { return localStorage.getItem(YT_ID_KEY) } catch { return null }
-  })
+  const [ytId, setYtIdState] = useState<string | null>(() => store.ytId.get())
   const setYtId = (id: string | null) => {
     setYtIdState(id)
-    try { id ? localStorage.setItem(YT_ID_KEY, id) : localStorage.removeItem(YT_ID_KEY) } catch { /* 이번 세션만 유지 */ }
+    store.ytId.set(id)
   }
   // 분석을 끝냈거나 건너뛰어 코스 화면까지 간 적이 있는지 — 홈 '코스' 탭이 분석부터일지 목록일지 정한다
   const [done, setDone] = useState(!!snap.done)
@@ -245,7 +217,7 @@ export default function PlannerApp() {
     [saved, aiPool],
   )
   useEffect(() => {
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedCourses)) } catch { /* 저장 공간 없음 — 이번 세션만 유지 */ }
+    store.savedCourses.set(savedCourses)
   }, [savedCourses])
 
   // 분석 결과·코스 목록을 세션에 남겨서 새로고침해도 같은 화면을 이어 그린다
@@ -255,7 +227,7 @@ export default function PlannerApp() {
       report, taste, tags, picks, intent, hourRange, cond, swipes, done,
       aiIds, pool: aiIds.map((id) => aiPool[id]).filter(Boolean),
     }
-    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch { /* 저장 공간 없음 — 새로고침하면 처음부터 */ }
+    store.session.set(s)
   })
 
   // 로그인하면 DB에 저장해 둔 코스를 가져와 합침
@@ -392,7 +364,7 @@ export default function PlannerApp() {
     // 처음이면 구글 로그인 페이지로 이동 → 백엔드가 집계 후 /?yt=<id>로 돌려보냄
     try {
       const url = youtubeAuthorizeUrl()
-      try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ auth: { ...auth, pw: '' }, sources })) } catch { /* 저장 불가 시 돌아와서 로그인만 다시 */ }
+      store.ytPending.set({ auth: { ...auth, pw: '' }, sources }) // 저장 불가면 돌아와서 로그인만 다시
       // 고른 사진은 페이지 이동 전에 기기 안(IndexedDB)에 보관했다가 돌아와서 복원
       void (sources.photos ? stashPhotos(photoFiles) : Promise.resolve()).then(() => { window.location.href = url })
     } catch (e) {
@@ -437,19 +409,19 @@ export default function PlannerApp() {
       setLoginError(known[err] || err)
       return
     }
-    const token = fresh || localStorage.getItem(LOGIN_TOKEN_KEY)
+    const token = fresh || store.loginToken.get()
     if (!token) return
     fetchMe(token)
       .then((me) => {
-        localStorage.setItem(LOGIN_TOKEN_KEY, token)
-        localStorage.setItem(LAST_PROVIDER_KEY, me.provider)
+        store.loginToken.set(token)
+        store.lastProvider.set(me.provider)
         setAuth({ user: { name: me.nickname || '게스트', email: me.email || '', avatar: me.avatar_url }, token, error: '' })
       })
       .catch((e: AuthFailure) => {
         // 토큰이 만료·폐기됐을 때(401·404)만 지운다.
         // 서버가 꺼져 있거나 네트워크가 끊긴 것뿐인데 지우면 멀쩡한 로그인이 날아간다
         if (e.status === 401 || e.status === 403 || e.status === 404) {
-          localStorage.removeItem(LOGIN_TOKEN_KEY)
+          store.loginToken.set(null)
           setAuth({ token: null }) // 상태에서도 빼야 로그인 화면이 다시 나온다
         }
         if (fresh) setLoginError('로그인 확인에 실패했어요. 다시 시도해 주세요.') // 방금 막 돌아왔는데 토큰이 안 먹히면 서버 쪽 문제
@@ -536,7 +508,7 @@ export default function PlannerApp() {
   // 화면 안의 '뒤로/처음으로' 버튼이 이걸 부르면 안 된다 (멀쩡한 로그인이 풀린다)
   const logout = () => {
     restart()
-    localStorage.removeItem(LOGIN_TOKEN_KEY)
+    store.loginToken.set(null)
     setYtId(null) // 로그아웃하면 유튜브 연동도 함께 끊는다
     setAuthState({ mode: 'login', name: '', email: '', pw: '', error: '', user: null, token: null, skipped: false })
   }
@@ -612,7 +584,7 @@ export default function PlannerApp() {
     )
   }
   if (splash) {
-    return <SplashScreen onDone={() => { try { sessionStorage.setItem(SPLASH_KEY, '1') } catch { /* 다음에 또 보여도 무방 */ } setSplash(false) }} />
+    return <SplashScreen onDone={() => { store.splashed.set('1'); setSplash(false) }} />
   }
   if (homeTab) {
     return (
@@ -771,9 +743,7 @@ function AuthScreen({ auth, setAuth, goHome }: {
   // 자세한 내용과 재활성화 방법은 docs/deferred-email-password-login.md 참고
   const signup = auth.mode === 'signup'
   // 지난번에 성공적으로 로그인했던 소셜 제공자 — 토큰이 만료돼 다시 로그인해야 할 때도 안내용으로 남아있음
-  const [lastProvider] = useState(() => {
-    try { return localStorage.getItem(LAST_PROVIDER_KEY) } catch { return null }
-  })
+  const [lastProvider] = useState(() => store.lastProvider.get())
   const socials = [
     { key: 'kakao', l: '카카오로 계속하기', mark: 'K', bg: '#FEE500', bd: '#FEE500', fg: '#191600', dot: 'rgba(0,0,0,.82)', dotFg: '#FEE500' },
     { key: 'google', l: 'Google로 계속하기', mark: 'G', bg: '#fff', bd: 'rgba(20,24,33,.12)', fg: '#2c3444', dot: 'rgba(20,24,33,.06)', dotFg: '#2c3444' },

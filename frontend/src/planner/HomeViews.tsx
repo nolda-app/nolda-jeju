@@ -6,20 +6,15 @@ import { fetchPlaceDetails } from './api'
 import type { PlaceDetail } from './api'
 import type { Place } from './geo'
 import type { Course } from './data'
+import { store } from '../app/storage'
 
-const RECENT_KEY = 'nolda:recent-search'
 const RECENT_MAX = 8
 const SUGGEST = ['애월', '함덕', '성산', '오름', '바다', '흑돼지']
 
 export const KINDS = ['식사', '카페', '한잔', '체험', '문화', '산책', '운동']
 
-function readRecent(): string[] {
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') as string[] } catch { return [] }
-}
-
-function writeRecent(list: string[]) {
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)) } catch { /* 저장 공간 없음 — 이번 세션만 */ }
-}
+const readRecent = (): string[] => store.recentSearch.get() ?? []
+const writeRecent = (list: string[]) => store.recentSearch.set(list)
 
 const Chevron = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
