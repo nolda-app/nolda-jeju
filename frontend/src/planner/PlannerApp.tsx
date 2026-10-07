@@ -15,7 +15,7 @@ import type { Swipe } from './tasteType'
 import { stashPhotos, takePhotos } from './photoStash'
 import { loadPlaces, placeGeo } from './geo'
 import { useWalkLegs } from './useWalkLegs'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { analyzeTaste, deleteSavedCourse, fetchAiCourses, fetchCourse, fetchMe, fetchPlaceDetails, fetchSavedCourses, putSavedCourse, fetchYoutubeTaste, googleLoginUrl, kakaoLoginUrl, updateMe, youtubeAuthorizeUrl } from './api'
 import type { AuthFailure } from './api'
@@ -220,16 +220,15 @@ export default function PlannerApp() {
     closeTimer.current = window.setTimeout(finish, MODAL_CLOSE_MS)
   }
 
-  // 페이지를 새로 열고 돌아온 경우 — 주소의 ?값 대신 알맞은 화면 경로로 바꾼다.
-  // 그려지기 전에(useLayoutEffect) 옮겨야 홈이 잠깐 비치지 않는다
-  useLayoutEffect(() => {
+  // 페이지를 새로 열고 돌아온 경우 — 주소의 ?값 대신 알맞은 화면 경로로 바꾼다 (아래 렌더에서 <Navigate>).
+  // 첫 렌더의 effect에서 navigate()를 부르면 라우터가 아직 주소 변경을 구독하기 전이라 화면이 안 바뀐다
+  const [entryTarget] = useState(() => {
     const { yt, ytError: ytErr, loginToken, loginError: loginErr, course } = entry
-    if (course) navigate(`/course/${encodeURIComponent(course)}`, { replace: true })
-    else if (yt || ytErr) navigate(yt ? '/analyze' : '/start', { replace: true })
-    else if (loginToken) navigate(afterLoginPath(), { replace: true })
-    else if (loginErr) navigate('/', { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (course) return `/course/${encodeURIComponent(course)}`
+    if (yt || ytErr) return yt ? '/analyze' : '/start'
+    if (loginToken) return afterLoginPath()
+    return loginErr ? '/' : null
+  })
 
   // 코스 화면까지 오면 분석을 끝낸 것으로 친다 (주소로 바로 들어온 경우 포함)
   useEffect(() => { if (tab && authed) setDone(true) }, [tab, authed])
@@ -605,6 +604,8 @@ export default function PlannerApp() {
   const toastEl = toast && <div className="pl-toast" role="status">{toast}</div>
   const sheet = COND.find((c) => c.key === sheetKey) || null
 
+  // 복귀 주소(?login_token 등)가 아직 그대로면 먼저 경로를 바꾼다 — 바뀐 뒤엔 ?값이 없어 다시 오지 않는다
+  if (entryTarget && location.search) return <Navigate to={entryTarget} replace />
   if (loginError) {
     return (
       <LoginErrorScreen message={loginError} goHome={() => { setLoginError(null); navigate('/') }} />
