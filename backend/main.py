@@ -8,6 +8,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from fastapi import FastAPI, Header, HTTPException  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
@@ -22,6 +23,7 @@ from places import load_places, place_details  # noqa: E402
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 app = FastAPI(title="NOLDA API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)  # /places 같은 큰 목록을 압축 (1.5MB → 수백 KB)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),

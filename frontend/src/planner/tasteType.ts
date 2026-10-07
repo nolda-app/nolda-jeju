@@ -12,14 +12,14 @@ export interface TasteType {
 }
 
 export const TASTE_TYPES: TasteType[] = [
-  { key: 'sunset', name: '노을 산책가', emoji: '🌇', line: '해 질 무렵 강변을 걷다가 분위기 좋은 카페에 들르는 게 최고의 하루', areas: ['망원', '합정'], kinds: ['산책', '카페'], color: '#F29A5C' },
-  { key: 'cafe', name: '카페 수집가', emoji: '☕', line: '새로 생긴 카페는 일단 저장, 디저트 지도는 이미 머릿속에', areas: ['연남', '망원'], kinds: ['카페'], color: '#B7835A' },
-  { key: 'gourmet', name: '골목 미식가', emoji: '🍜', line: '큰길보다 골목 안에 숨은 한 그릇을 찾아내는 즐거움', areas: ['망원', '합정'], kinds: ['식사'], color: '#E0703F' },
-  { key: 'night', name: '밤거리 한잔러', emoji: '🍷', line: '해가 지면 시작되는 사람, 좋은 음악 흐르는 바에서 하루를 마무리', areas: ['홍대', '상수'], kinds: ['한잔'], color: '#7A5FC8' },
-  { key: 'explorer', name: '전시 탐험가', emoji: '🖼️', line: '팝업·전시·새로운 공간은 남들보다 먼저 가 봐야 직성이 풀려요', areas: ['연남', '상수'], kinds: ['문화'], color: '#3F7CB8' },
-  { key: 'active', name: '액티비티 러버', emoji: '🧗', line: '보는 것보다 직접 해 보는 게 좋아요, 몸으로 노는 하루', areas: ['상암', '홍대'], kinds: ['체험'], color: '#2A9A66' },
-  { key: 'healer', name: '여유 힐링러', emoji: '🌿', line: '사람 적은 곳에서 천천히, 쉬는 날은 제대로 쉬고 싶어요', areas: ['상암', '망원'], kinds: ['산책', '카페'], color: '#5FA884' },
-  { key: 'hip', name: '골목 트렌드세터', emoji: '✨', line: '사진 찍기 좋은 골목과 소품샵을 누비며 요즘 뜨는 곳을 찾아요', areas: ['연남', '홍대'], kinds: ['체험', '카페'], color: '#DB5F92' },
+  { key: 'sunset', name: '노을 산책가', emoji: '🌇', line: '해 질 무렵 강변을 걷다가 분위기 좋은 카페에 들르는 게 최고의 하루', areas: ['애월', '협재'], kinds: ['산책', '카페'], color: '#F29A5C' },
+  { key: 'cafe', name: '카페 수집가', emoji: '☕', line: '새로 생긴 카페는 일단 저장, 디저트 지도는 이미 머릿속에', areas: ['애월', '월정'], kinds: ['카페'], color: '#B7835A' },
+  { key: 'gourmet', name: '골목 미식가', emoji: '🍜', line: '큰길보다 골목 안에 숨은 한 그릇을 찾아내는 즐거움', areas: ['제주시내', '서귀포'], kinds: ['식사'], color: '#E0703F' },
+  { key: 'night', name: '밤거리 한잔러', emoji: '🍷', line: '해가 지면 시작되는 사람, 좋은 음악 흐르는 바에서 하루를 마무리', areas: ['제주시내', '서귀포'], kinds: ['한잔'], color: '#7A5FC8' },
+  { key: 'explorer', name: '전시 탐험가', emoji: '🖼️', line: '팝업·전시·새로운 공간은 남들보다 먼저 가 봐야 직성이 풀려요', areas: ['중문', '제주시내'], kinds: ['문화'], color: '#3F7CB8' },
+  { key: 'active', name: '액티비티 러버', emoji: '🧗', line: '보는 것보다 직접 해 보는 게 좋아요, 몸으로 노는 하루', areas: ['성산', '중문'], kinds: ['체험'], color: '#2A9A66' },
+  { key: 'healer', name: '여유 힐링러', emoji: '🌿', line: '사람 적은 곳에서 천천히, 쉬는 날은 제대로 쉬고 싶어요', areas: ['함덕', '성산'], kinds: ['산책', '카페'], color: '#5FA884' },
+  { key: 'hip', name: '골목 트렌드세터', emoji: '✨', line: '사진 찍기 좋은 골목과 소품샵을 누비며 요즘 뜨는 곳을 찾아요', areas: ['월정', '애월'], kinds: ['체험', '카페'], color: '#DB5F92' },
 ]
 
 /** 분석 중 스와이프한 장소 */

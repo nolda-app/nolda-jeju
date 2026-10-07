@@ -9,7 +9,7 @@ import type { Course } from './data'
 
 const RECENT_KEY = 'nolda:recent-search'
 const RECENT_MAX = 8
-const SUGGEST = ['망원동', '연남동', '합정', '한강', '전시', '브런치']
+const SUGGEST = ['애월', '함덕', '성산', '오름', '바다', '흑돼지']
 
 export const KINDS = ['식사', '카페', '한잔', '체험', '문화', '산책', '운동']
 
@@ -35,7 +35,7 @@ export function PlaceRow({ p, onPick }: { p: Place; onPick?: (p: Place) => void 
       <div className="pl-vrow-body">
         <div className="pl-vrow-name">{p.name}</div>
         <div className="pl-vrow-sub">{[p.kind, p.area].filter(Boolean).join(' · ')}</div>
-        <div className="pl-vrow-addr">{p.addr.replace(/^서울(특별시)?\s*마포구\s*/, '')}</div>
+        <div className="pl-vrow-addr">{p.addr.replace(/^제주(특별자치도)?\s*/, '')}</div>
       </div>
     </div>
   )
@@ -258,7 +258,7 @@ export function MyView({ authed, userName, avatar, savedCount, onLogin, onSaved,
         </div>
         <div className="pl-my-info">
           <div className="pl-my-name">{name}</div>
-          <div className="pl-my-sub">{authed ? '마포구에서 놀 준비 완료' : '로그인하면 저장한 코스가 기기 간에 따라와요'}</div>
+          <div className="pl-my-sub">{authed ? '제주에서 놀 준비 완료' : '로그인하면 저장한 코스가 기기 간에 따라와요'}</div>
         </div>
         {authed && !editing && (
           <button type="button" className="pl-my-edit" onClick={open}>편집</button>
@@ -363,7 +363,7 @@ export function PlaceSheet({ p, onClose }: { p: Place; onClose: () => void }) {
         <div className="pl-psheet-body">
           <div className="pl-psheet-name">{p.name}</div>
           <div className="pl-psheet-sub">{[p.kind, p.cat.split('>').pop()?.trim(), p.area].filter(Boolean).join(' · ')}</div>
-          <div className="pl-psheet-addr">{p.addr.replace(/^서울(특별시)?\s*마포구\s*/, '')}</div>
+          <div className="pl-psheet-addr">{p.addr.replace(/^제주(특별자치도)?\s*/, '')}</div>
 
           {!!p.tags?.length && (
             <div className="pl-chips" style={{ marginTop: 14 }}>

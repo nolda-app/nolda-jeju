@@ -14,7 +14,7 @@ const FLICK_PX = 18 // 빠르게 튕길 때는 이만큼만 밀어도 넘어감
 const FLICK_MS = 250
 const EDGE_RESIST = 0.3 // 첫/마지막 장소에서 더 밀 때 끌려오는 비율
 
-const shortAddr = (addr: string) => addr.replace(/^서울(특별시)?\s*마포구\s*/, '')
+const shortAddr = (addr: string) => addr.replace(/^제주(특별자치도)?\s*/, '')
 // 저장된 업체 URL이 없어서 이름+동네로 네이버 지도 검색 결과로 보냄 (이름이 대부분 고유해서 상위 결과가 그 업체)
 const naverMapSearchUrl = (name: string, area: string) => `https://map.naver.com/p/search/${encodeURIComponent(`${name} ${area}`)}`
 

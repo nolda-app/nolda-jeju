@@ -62,12 +62,9 @@ def check_blocked(page_text: str) -> None:
 
 
 def road_token(addr: str) -> str | None:
-    """'서울(특별시) 마포구 와우산로23길 9 ...' -> '와우산로23길' (동/도로명까지만 비교용으로 추출)."""
-    idx = addr.find("마포구")
-    if idx == -1:
-        return None
-    rest = addr[idx + len("마포구"):].strip()
-    return rest.split()[0] if rest else None
+    """'제주특별자치도 제주시 애월읍 애월해안로 272 ...' -> '애월해안로' (도로명까지만 비교용으로 추출)."""
+    m = re.search(r"(제주시|서귀포시)\s+(?:\S+[읍면]\s+)?(\S+)", addr)
+    return m.group(2) if m else None
 
 
 def labeled_value(soup: BeautifulSoup, label: str) -> str | None:
@@ -148,7 +145,7 @@ def scrape_one(driver, place: dict) -> dict:
     row = {"pid": place["pid"], "name": place["name"], "phone": "", "business_hours": "",
            "menu": "", "status": "", "scraped_at": datetime.now(timezone.utc).isoformat()}
 
-    place_id = find_place_id(driver, f"{place['name']} 마포")
+    place_id = find_place_id(driver, f"{place['name']} 제주")
     if place_id is None:
         row["status"] = "not_found"
         return row
@@ -162,7 +159,7 @@ def scrape_one(driver, place: dict) -> dict:
     soup = BeautifulSoup(driver.page_source, "html.parser")
 
     addr_text = labeled_value(soup, "주소") or ""
-    # "마포구"까지는 25곳 전부 동일해서 도로명(예: "와우산로23길")까지 비교해야 다른 지점과의
+    # "제주시/서귀포시"까지는 대부분 동일해서 도로명(예: "와우산로23길")까지 비교해야 다른 지점과의
     # 오매칭을 잡아낼 수 있다 (예: "츠케루"가 이름만 같은 다른 지점으로 매칭된 사례 있었음)
     expected_road = road_token(place["address"])
     actual_road = road_token(addr_text)

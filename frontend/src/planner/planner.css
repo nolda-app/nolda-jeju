@@ -782,28 +782,6 @@
   opacity: .8;
 }
 
-/* CTA는 히어로 아래쪽에 붙여 둔다 — 사진 높이가 달라져도 자리가 안 흔들린다 */
-.pl-hero-cta {
-  position: absolute;
-  left: 22px;
-  bottom: 40px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 14px 20px;
-  border: 0;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, .95);
-  box-shadow: 0 6px 20px rgba(20, 24, 33, .22);
-  font: 800 14.5px/1 Pretendard, sans-serif;
-  letter-spacing: -.02em;
-  color: #00845A;
-  cursor: pointer;
-}
-
-.pl-hero-cta:active { background: #fff; transform: translateY(1px); }
-.pl-hero-cta-x { font-size: 17px; line-height: 1; opacity: .6; }
-
 /* ── 오늘의 추천 코스 ─────────────────────────────────────── */
 /* 배너를 덮으며 올라가는 장 — 배너보다 앞(z축 위)이고 배경이 불투명해야 한다.
    이름 주의: .pl-sheet는 이미 '바닥에서 올라오는 선택 시트'가 쓰고 있다 — 겹치면 그쪽이 깨진다 */
@@ -902,9 +880,13 @@
 .pl-rec-flow {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 9px;
+  gap: 4px 6px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
 }
+
+.pl-rec-stop + .pl-rec-stop::before { content: '›'; margin-right: 2px; color: rgba(20, 24, 33, .3); }
 
 .pl-rec-stop {
   display: inline-flex;
@@ -986,41 +968,6 @@
 .pl-mood-c { background: #EDF5DC; color: #6B7A12; }
 .pl-mood-d { background: #EBE9F8; color: #5B4B8A; }
 
-/* ── 하단 안내 띠 ─────────────────────────────────────────── */
-.pl-promo {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  margin-top: 14px;
-  padding: 14px 13px;
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #FDEBF0 0%, #FBE4EC 100%);
-  text-align: left;
-  cursor: pointer;
-  transition: transform .18s cubic-bezier(.22, .9, .3, 1);
-}
-
-.pl-promo:active { transform: scale(.985); }
-
-.pl-promo-face { flex: none; font-size: 27px; }
-
-.pl-promo-copy {
-  flex: 1;
-  min-width: 0;
-  font: 500 11.5px/1.6 Pretendard, sans-serif;
-  color: rgba(20, 24, 33, .6);
-}
-
-.pl-promo-copy b {
-  display: block;
-  font: 800 11.5px/1.6 Pretendard, sans-serif;
-  color: #C2456B;
-}
-
-.pl-promo-x { flex: none; font-size: 18px; color: rgba(20, 24, 33, .3); }
-
 /* ── 지금 가볼 만한 곳 — 오른쪽에서 왼쪽으로 끊김 없이 흐른다 ── */
 .pl-marquee { overflow: hidden; }
 
@@ -1098,14 +1045,13 @@
 
 /* 제목 → 타일 순으로 아주 살짝 늦게 — 한꺼번에 뜨면 기계처럼 보인다 */
 .pl-moods.pl-rv { transition-delay: .08s; }
-.pl-promo.pl-rv { transition-delay: .04s; }
 
 /* 모션을 끄고 쓰는 사람에게는 움직임 없이 결과만 보여준다 */
 @media (prefers-reduced-motion: reduce) {
   .pl-hero-bg { transition: none; animation: none; }
   .pl-hero-bg.on { animation: none; }
   .pl-rv { opacity: 1; transform: none; transition: none; }
-  .pl-rec-card, .pl-mood, .pl-promo, .pl-pcard { transition: none; }
+  .pl-rec-card, .pl-mood, .pl-pcard { transition: none; }
   /* 흐르는 줄은 멈추고, 대신 손으로 밀어서 본다 */
   .pl-marquee { overflow-x: auto; }
   .pl-marquee-track { animation: none; }
@@ -1179,6 +1125,19 @@
 }
 
 .pl-home-cta:active { background: #00845A; }
+
+/* 홈의 코스 만들기 버튼 — 탭바 바로 위에 고정 (탭바 높이 약 64px) */
+.pl-home-fab {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  z-index: 3;
+  padding: 12px 16px 10px;
+  background: linear-gradient(rgba(250, 248, 243, 0), #FAF8F3 40%);
+}
+
+.pl-home-fab .pl-home-cta { margin-top: 0; box-shadow: 0 6px 18px rgba(0, 132, 90, .25); }
 
 /* 로그인 화면 좌측 상단 홈 버튼 */
 .pl-backhome {

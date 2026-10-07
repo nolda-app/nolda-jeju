@@ -1,7 +1,7 @@
 // 앱 첫 화면 — 하단 탭(홈/코스/검색/저장/마이페이지)으로 나뉜 껍데기
 import { useEffect, useMemo, useRef, useState } from 'react'
 import KindThumb from './KindThumb'
-import { allPlaces, loadPlaces, placeInfo } from './geo'
+import { allPlaces, loadPlaces } from './geo'
 import type { Place } from './geo'
 import { COURSES, durLabel, won } from './data'
 import type { Course } from './data'
@@ -17,21 +17,21 @@ const TAB_TITLE: Record<HomeTab, string> = {
   home: '', course: '', search: '검색', my: '마이페이지', saved: '저장',
 }
 
-/** 히어로 배경 — 실제 장소 사진 중 풍경이 담긴 것만 골랐다.
- *  (다른 공원 사진은 대부분 안내판·표지석이라 배경으로 못 쓴다)
- *  사진을 바꾸려면 pid만 갈아끼우면 된다. 못 불러오면 아래 그라데이션이 그대로 보인다. */
-const HERO_PIDS = [
-  'cbca2388-9610-5dbc-baef-612190116875', // 마포새빛문화숲 — 여의도 스카이라인과 노을
-  '3bb1320b-ad28-5862-bb22-908a1883d1e8', // 망원한강공원 — 한강 노을
-  '7dc72cd1-38eb-595c-90c0-5350bc0d7ce2', // 난지 한강공원 — 해 질 녘 산책길
+/** 히어로 배경 — 비짓제주 대표사진 중 바다 풍경. 장소 목록(/places)을 기다리지 않도록 주소를 바로 적는다.
+ *  못 불러오면 아래 그라데이션이 그대로 보인다. */
+const CDN = 'https://api.cdn.visitjeju.net/photomng/imgpath'
+const HERO_IMGS = [
+  `${CDN}/202408/20/513120bd-dc32-4f3a-9cf1-64d7561990c3.webp`, // 함덕해수욕장
+  `${CDN}/201804/30/315ce1af-1c6c-4977-8668-4710321df6a1.webp`, // 광치기해변 — 성산일출봉
+  `${CDN}/202408/27/e8a13893-251e-4acc-9657-34ba532426ad.webp`, // 협재해수욕장 — 비양도
 ]
 
-/** '이런 데이트도 좋아요' — 눌러서 검색 탭의 해당 종류로 넘어간다 */
+/** '이런 코스도 좋아요' — 눌러서 검색 탭의 해당 종류로 넘어간다 */
 const MOODS: { l: string; kind: string; cls: string; d: string }[] = [
-  { l: '분위기 좋은\n데이트', kind: '카페', cls: 'a', d: 'M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z' },
-  { l: '맛집\n데이트', kind: '식사', cls: 'b', d: 'M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-1.7 1.3-2.5 3.3-2.5 6v4H17v8' },
-  { l: '산책\n데이트', kind: '산책', cls: 'c', d: 'M12 21v-6M12 15c-3.9 0-6-2.5-6-5.5C6 6 8.7 3 12 3s6 3 6 6.5c0 3-2.1 5.5-6 5.5ZM9 21h6' },
-  { l: '체험\n데이트', kind: '체험', cls: 'd', d: 'M4 8h3l1.5-2h7L17 8h3v11H4ZM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z' },
+  { l: '분위기 좋은\n카페', kind: '카페', cls: 'a', d: 'M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z' },
+  { l: '제주\n맛집', kind: '식사', cls: 'b', d: 'M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-1.7 1.3-2.5 3.3-2.5 6v4H17v8' },
+  { l: '바다\n산책', kind: '산책', cls: 'c', d: 'M12 21v-6M12 15c-3.9 0-6-2.5-6-5.5C6 6 8.7 3 12 3s6 3 6 6.5c0 3-2.1 5.5-6 5.5ZM9 21h6' },
+  { l: '즐거운\n체험', kind: '체험', cls: 'd', d: 'M4 8h3l1.5-2h7L17 8h3v11H4ZM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z' },
 ]
 
 /** 화면에 들어온 .pl-rv 요소만 한 번씩 올라오며 나타나게 한다.
@@ -89,44 +89,42 @@ function courseSummary(c: Course) {
   return { mins, cost, first: c.items[0]?.pid }
 }
 
-/** 히어로 — 화면 맨 위에 붙박이로 있고 스크롤하지 않는다.
- *  문구와 '데이트 만들기' 버튼은 늘 보이고, 아래 내용만 그 밑에서 움직인다.
+/** 히어로 — 화면 맨 위에 붙박이로 있고 스크롤하지 않는다. 아래 내용만 그 위로 덮으며 움직인다.
+ *  코스 만들기 버튼은 여기 두지 않고 화면 하단에 하나만 고정한다 (HomeScreen).
  *  배경 사진은 제자리에서 천천히 바뀌고, 보이는 동안 아주 조금씩 확대된다. */
-function Hero({ ready, onStart }: { ready: boolean; onStart: () => void }) {
+function Hero() {
   const [i, setI] = useState(0)
 
   useEffect(() => {
-    if (!ready) return
-    const t = setInterval(() => setI((n) => (n + 1) % HERO_PIDS.length), HERO_MS)
+    const t = setInterval(() => setI((n) => (n + 1) % HERO_IMGS.length), HERO_MS)
     return () => clearInterval(t)
-  }, [ready])
+  }, [])
 
   return (
     <div className="pl-hero">
       <div className="pl-hero-bgs" aria-hidden>
-        {ready && HERO_PIDS.map((pid, n) => {
-          const img = placeInfo(pid)?.img
-          return img ? <img key={pid} className={'pl-hero-bg' + (n === i ? ' on' : '')} src={img} alt="" /> : null
-        })}
+        {HERO_IMGS.map((src, n) => (
+          <img key={src} className={'pl-hero-bg' + (n === i ? ' on' : '')} src={src} alt="" />
+        ))}
       </div>
       <div className="pl-hero-shade" aria-hidden />
       <div className="pl-hero-body">
         <div className="pl-hero-t">오늘 뭐 할까?</div>
-        <div className="pl-hero-s">당신의 취향과 일상을 분석해<br />AI가 딱 맞는 데이트 코스를 추천해드려요</div>
+        <div className="pl-hero-s">당신의 취향과 일상을 분석해<br />AI가 딱 맞는 코스를 추천해드려요</div>
       </div>
       <svg className="pl-hero-heart" viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#fff" strokeWidth={1.3} aria-hidden>
         <path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z" />
       </svg>
-      <button type="button" className="pl-hero-cta" onClick={onStart}>
-        <span aria-hidden>✨</span> 오늘의 데이트 만들기 <span className="pl-hero-cta-x" aria-hidden>›</span>
-      </button>
     </div>
   )
 }
 
-/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스를 돌려 보여준다 */
+/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스 중 날짜마다 다른 3개를 돌려 보여준다 */
 function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: string) => void; onAll: () => void }) {
-  const list = useMemo(() => COURSES.slice(0, 3), [])
+  const list = useMemo(() => {
+    const from = new Date().getDate() % COURSES.length
+    return [0, 1, 2].map((n) => COURSES[(from + n) % COURSES.length])
+  }, [])
   const [i, setI] = useState(0)
   const [held, setHeld] = useState(false)
 
@@ -152,16 +150,17 @@ function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: str
           {ready ? <KindThumb kind={c.items[0]?.k || ''} size={104} pid={first} /> : <div className="pl-rec-imgskel" />}
         </div>
         <div className="pl-rec-body">
-          <span className="pl-rec-badge">취향 맞춤</span>
+          <span className="pl-rec-badge">{c.area} · {c.items.length}곳</span>
           <div className="pl-rec-t">{c.title}</div>
-          <div className="pl-rec-flow">
+          {/* 어떤 곳을 어떤 순서로 도는지 — 장소 이름을 이어서 보여줘야 '코스'로 읽힌다 */}
+          <ol className="pl-rec-flow">
             {c.items.map((it, n) => (
-              <span key={n} className="pl-rec-stop">
+              <li key={n} className="pl-rec-stop">
                 <KindThumb kind={it.k} size={17} />
-                {it.k}
-              </span>
+                {it.n}
+              </li>
             ))}
-          </div>
+          </ol>
           <div className="pl-rec-meta">예상 소요시간 {durLabel(mins)} · 예상 비용 {won(cost)}</div>
           <div className="pl-rec-go">코스 보기 <span aria-hidden>›</span></div>
         </div>
@@ -286,19 +285,19 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
         </div>
       )}
 
-      <div className="pl-scroll" ref={scrollRef} style={{ padding: '0 0 104px' }}>
+      <div className="pl-scroll" ref={scrollRef} style={{ padding: home ? '0 0 168px' : '0 0 104px' }}>
         {failed && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
 
         {home && (
           <>
             {/* 배너는 제자리에 붙어 있고(sticky), 아래 장이 그 위를 덮으며 올라간다 */}
-            <Hero ready={ready} onStart={onStart} />
+            <Hero />
 
             <div className="pl-homesheet">
             <RecCourses ready={ready} onOpen={onOpenCourse} onAll={() => setTab('course')} />
 
             <div className="pl-home-pad">
-              <h2 className="pl-sec-t pl-rv">이런 데이트도 좋아요</h2>
+              <h2 className="pl-sec-t pl-rv">이런 코스도 좋아요</h2>
               <div className="pl-moods pl-rv">
                 {MOODS.map((m) => (
                   <button key={m.l} type="button" className={'pl-mood pl-mood-' + m.cls}
@@ -310,16 +309,6 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
                   </button>
                 ))}
               </div>
-
-              <button type="button" className="pl-promo pl-rv" onClick={soon}>
-                <span className="pl-promo-face" aria-hidden>🐱</span>
-                <span className="pl-promo-copy">
-                  <b>NOLDA가 기억하는</b>
-                  {authed && userName ? `${userName}님의 취향을 바탕으로` : '당신의 취향을 바탕으로'}
-                  <br />오늘도 특별한 데이트를 추천해드려요!
-                </span>
-                <span className="pl-promo-x" aria-hidden>›</span>
-              </button>
 
               <h2 className="pl-sec-t pl-rv">지금 가볼 만한 곳</h2>
             </div>
@@ -341,11 +330,6 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
               </div>
             </div>
 
-            <div className="pl-home-pad">
-              <button type="button" className="pl-home-cta" onClick={onStart}>
-                {authed && userName ? `${userName}님 취향으로 코스 만들기` : '내 취향으로 코스 만들기'}
-              </button>
-            </div>
             </div>
           </>
         )}
@@ -361,6 +345,15 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
           />
         )}
       </div>
+
+      {/* 홈의 코스 만들기 버튼은 이것 하나 — 스크롤해도 탭바 위에 붙어 있다 */}
+      {home && (
+        <div className="pl-home-fab">
+          <button type="button" className="pl-home-cta" onClick={onStart}>
+            {authed && userName ? `${userName}님 취향으로 코스 만들기` : '내 취향으로 코스 만들기'}
+          </button>
+        </div>
+      )}
 
       <BottomTabs active={tab} savedCount={savedCourses.length} onSelect={go} />
 

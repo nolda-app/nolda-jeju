@@ -40,7 +40,7 @@
 | 단계 | 파일 | 기능 |
 |---|---|---|
 | 인증 설정 | `nolda-지역검색.ipynb` | `.env`의 `client_ID`/`client_secret`로 NCP API 헤더 구성 |
-| 대량 수집 | `nolda-지역검색.ipynb` | `MAPO_DONGS`(동) × `categories`(업종) 순회 호출, 재실행해도 안전(누적) |
+| 대량 수집 | `nolda-지역검색.ipynb` | `JEJU_DONGS`(동) × `categories`(업종) 순회 호출, 재실행해도 안전(누적) |
 | 카페/맛집 보강 | `nolda-지역검색.ipynb` | 지역검색 API는 쿼리당 결과 5건 하드캡이라, `sort=comment`/`sort=random` 이중 호출 + 세부 키워드로 커버리지 확대 |
 | 부적합 카테고리 제외 | `nolda-장소가공.ipynb` | `EXCLUDED_CATEGORIES`(병원/약국/편의점 등)에 해당하는 행은 최종 산출물에서 제외 (원본은 유지) |
 | 스키마 매핑 | `nolda-장소가공.ipynb` | 지역검색 응답 → `place` 스키마 변환 |
@@ -144,7 +144,7 @@
 | business_hours | jsonb, nullable | 영업시간 — **미구현**, 상세 스크래핑 필요 |
 | menu | jsonb, nullable | 메뉴 — **미구현**, 상세 스크래핑 필요 |
 | tags | text[] | 취향 태그 — **미구현**, 설계는 [4절](#4-tags-채우기-설계-예정-미구현) 참고 |
-| area | text, nullable | 마포구 내 관심 동 (`nolda_common.MAPO_DONGS` 기준). 블로그 유래 장소는 주소에서 못 찾으면 비어있음 |
+| area | text, nullable | 제주 내 관심 지역 (`nolda_common.JEJU_DONGS` 기준). 블로그 유래 장소는 주소에서 못 찾으면 비어있음 |
 | event_start, event_end | date(ISO 문자열), nullable | 팝업 진행기간. 상시 영업 장소는 항상 없음. **원래 place 스키마엔 없던 컬럼 — Supabase 테이블에도 추가 필요** |
 | source | text | `local`(지역검색) 또는 `blog_popup`(블로그 파이프라인) — 원본 추적용, place 스키마 확정 시 제외 여부 논의 필요 |
 | raw_json | jsonb | 원본 API 응답(또는 블로그 원본 행) 통째로 보관 |

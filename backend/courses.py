@@ -45,7 +45,7 @@ COMPANIONS = {"solo": "혼자", "couple": "연인", "friends": "친구", "family
 PLAN_DEFAULT = ("적당히", 95, (2, 6))
 # 장소 종류별 현실적인 체류 시간(분). 시간을 꽉 채운다고 밥을 3시간 먹게 하면 안 된다.
 STAY_RANGE = {
-    "식사": (40, 100), "카페": (30, 120), "한잔": (50, 150),
+    "식사": (40, 70), "카페": (30, 120), "한잔": (50, 150),
     "체험": (45, 150), "문화": (30, 120), "산책": (20, 90),
 }
 STAY_DEFAULT = (30, 120)
@@ -54,7 +54,7 @@ STAY_DEFAULT = (30, 120)
 NO_REPEAT_ADJACENT = {"식사", "카페", "한잔"}
 # 함께 가는 사람과 안 맞는 곳 (업종·이름) — 후보에서 아예 뺀다
 NOT_FOR = {"family": re.compile(r"당구|PC방|피시방|노래|코인|오락실|술집|포차|이자카야|바|호프|펍|클럽|룸")}
-MAX_SAME_KIND = {"카페": 2, "식사": 2, "한잔": 2}  # 한 코스에 카페 3번은 이상하다
+MAX_SAME_KIND = {"카페": 2, "식사": 2, "한잔": 2, "산책": 1}  # 한 코스에 카페 3번, 공원·해변 두 번은 이상하다
 # DB 가격도, LLM 추정도 없거나 0일 때 쓰는 1인 기본 금액 — 산책·문화(무료 전시 많음)만 0원 허용
 DEFAULT_COST = {"식사": 15000, "카페": 7000, "한잔": 20000, "체험": 15000, "문화": 5000, "산책": 0}
 # 동네를 고를 때 취향별로 많이 필요한 장소 종류
@@ -63,13 +63,14 @@ TASTE_KINDS = {
     "cafe": ["카페"], "meal": ["식사"], "drink": ["한잔"], "play": ["체험", "문화"],
 }
 
-SYSTEM_PROMPT = """너는 서울 마포구 여가 코스 플래너야. 사용자 취향과 조건에 맞는 코스를 JSON으로 만든다.
+SYSTEM_PROMPT = """너는 제주도 여가·여행 코스 플래너야. 사용자 취향과 조건에 맞는 코스를 JSON으로 만든다.
 
 규칙
 1. 장소는 반드시 [후보 장소]의 ref로만 고른다. 목록에 없는 장소를 만들지 않는다.
 2. 코스 하나의 장소 수는 [조건]의 장소 수를 따른다. 한 코스 안에서 같은 장소를 반복하지 않고, 코스끼리도 가능하면 겹치지 않게 한다.
    식사·카페·한잔은 같은 종류를 연달아 두 곳 넣지 않는다 (밥 먹고 바로 또 밥은 안 된다).
    식사는 한 코스에 최대 2번이고, 두 번이면 점심과 저녁이라 최소 4시간은 떨어져야 한다. 카페·한잔도 한 코스에 최대 2번.
+   산책(공원·해변·산책로)은 한 코스에 1번만 넣는다.
    메인 코스 취향(예: 카페·디저트)이어도 그 종류는 코스당 1~2곳이고, 나머지는 산책·문화·체험·식사 등 다른 종류로 섞는다.
 3. 이동은 도보다. 좌표가 가까운 장소끼리(구간당 약 1km 이내) 묶는다.
 4. 시간 흐름이 자연스러운 순서로 배치하고 start_hour(0~23)를 정한다. [조건]에 시작 시각이 있으면 start_hour는 그 값이다.
@@ -86,7 +87,7 @@ SYSTEM_PROMPT = """너는 서울 마포구 여가 코스 플래너야. 사용자
    시간이 남는다고 한 곳에 오래 머물게 늘리지 말고, [조건]의 장소 수 범위 안에서 장소를 한 곳 더 넣어 채운다.
    시각이 없으면 조건의 시간(이동 포함)을 넘지 않는다. 1인 예산은 넘지 않는다.
 11. minutes는 그 장소에서 실제로 보낼 만한 시간이어야 한다. 아래를 넘기지 않는다.
-   식사 40~100분 · 카페 30~120분 · 한잔 50~150분 · 체험 45~150분 · 문화(전시) 30~120분 · 산책 20~90분.
+   식사 40~70분 · 카페 30~120분 · 한잔 50~150분 · 체험 45~150분 · 문화(전시) 30~120분 · 산책 20~90분.
    일정이 '촘촘하게'면 이 범위의 아래쪽으로 여러 곳, '여유롭게'면 위쪽으로 적은 곳을 간다.
    밥 한 끼에 3시간, 카페에 3시간처럼 현실에서 하지 않는 시간은 절대 적지 않는다.
 12. 함께 가는 사람에 맞춘다. 혼자: 혼자 머물기 편한 곳, 연인: 둘이 대화하기 좋은 곳(장소 특징에 "데이트" 있으면 우선),
@@ -244,6 +245,19 @@ def today_weekday() -> int:
     return datetime.now(KST).weekday()
 
 
+# 분위기 취향 → 인기도(pop) 가중치: 활기찬 곳을 좋아하면 붐비는 곳, 조용한 곳을 좋아하면 한적한 곳, 그 외엔 많이 가는 곳을 살짝 우선
+POP_WEIGHT = {"busy": 1.0, "quiet": -1.0}
+
+
+def pop_weight(req: "CourseRequest | None") -> float:
+    return POP_WEIGHT.get(req.taste.crowd or "", 0.5) if req else 0.5
+
+
+def pop_label(p: dict) -> str:
+    pop = p.get("pop") or 0
+    return "붐빔" if pop >= 0.8 else "보통" if pop >= 0.4 else "한적" if pop else "-"
+
+
 def sample_candidates(areas: list[str], rng: random.Random, req: "CourseRequest | None" = None, exclude: set[str] | None = None) -> dict[str, dict]:
     """동네·종류별로 가까운 곳 위주로 뽑되 매번 조금씩 섞어 코스가 반복되지 않게.
     시간 창이 있으면 그 시간에 문 닫는 곳(영업시간을 아는 곳만)은 뺀다"""
@@ -261,7 +275,9 @@ def sample_candidates(areas: list[str], rng: random.Random, req: "CourseRequest 
                 pool = [p for p in pool if place_cost(p) <= req.cond.budget / 2]
             if w:
                 pool = [p for p in pool if is_open(p, wd, w.start * 60, w.end * 60)]
-            pool = pool[: per_kind * 2]
+            # 가까운 곳들 안에서 인기도 취향에 맞는 쪽을 앞으로
+            near, wt = pool[: per_kind * 3], pop_weight(req)
+            pool = [p for _, p in sorted(enumerate(near), key=lambda x: x[0] / len(near) - wt * x[1].get("pop", 0))][: per_kind * 2]
             for p in rng.sample(pool, min(per_kind, len(pool))):
                 if p["id"] not in used:
                     used.add(p["id"])
@@ -296,7 +312,7 @@ def build_messages(req: CourseRequest, areas: list[str], refs: dict[str, dict], 
     ]
     places = [
         f"{ref} | {p['area']} | {p['kind']} | {p['name']} | {p['cat']} | {p['lat']:.4f},{p['lng']:.4f}"
-        f" | {','.join(p.get('tags') or []) or '-'} | {p.get('hours') or '-'} | {place_cost(p)}{'' if p.get('price') else '(추정)'}"
+        f" | {','.join(p.get('tags') or []) or '-'} | {pop_label(p)} | {p.get('hours') or '-'} | {place_cost(p)}{'' if p.get('price') else '(추정)'}"
         for ref, p in refs.items()
     ]
     user = "\n".join([
@@ -305,7 +321,7 @@ def build_messages(req: CourseRequest, areas: list[str], refs: dict[str, dict], 
         "", "[조건]", *cond,
         "", f"[만들 코스] {len(areas)}개 — area 순서: {', '.join(areas)}",
         f"코스마다 items는 반드시 {lo}곳 이상 {hi}곳 이하 (이보다 적거나 많으면 버려진다). 장소가 모자라 보여도 다른 종류로 채운다.",
-        "", "[후보 장소] ref | 동네 | 종류 | 이름 | 업종 | 좌표 | 리뷰 태그 | 영업시간 | 1인 가격(원)", *places,
+        "", "[후보 장소] ref | 동네 | 종류 | 이름 | 업종 | 좌표 | 리뷰 태그 | 방문 인기(내비 도착 기준) | 영업시간 | 1인 가격(원)", *places,
     ])
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
@@ -543,6 +559,7 @@ def rule_course(area: str, req: CourseRequest, rng: random.Random, avoid: set[st
     n = min(max(round(total / plan_of(req)[1]), lo), hi)
     by_kind = candidates_by_area(area)
     want_tags = set(COMPANION_TAGS.get(req.taste.companion or "", []) + CROWD_TAGS.get(req.taste.crowd or "", []))
+    wt = pop_weight(req)
     wd = today_weekday()
     budget = req.cond.budget
 
@@ -573,7 +590,7 @@ def rule_course(area: str, req: CourseRequest, rng: random.Random, avoid: set[st
                 if places and d > MAX_LEG_M:
                     continue
                 match = len(want_tags & set(p.get("tags") or []))
-                pool.append((d / 400 - match * 1.5 + rng.random() * 2, p))  # 가까움 + 태그 일치 + 약간의 무작위
+                pool.append((d / 400 - match * 1.5 - wt * p.get("pop", 0) * 2 + rng.random() * 2, p))  # 가까움 + 태그 일치 + 인기도 취향 + 약간의 무작위
             if pool:
                 picked = (kind, min(pool, key=lambda x: x[0])[1])
                 break

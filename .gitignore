@@ -20,3 +20,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# 제주관광빅데이터플랫폼 원본 (30MB) — 서버는 scripts/build_popularity.py 결과물(place_popularity.csv)만 씀
+backend/data/제주 지역별 인기 장소.csv
