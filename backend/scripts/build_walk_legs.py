@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ENV = ROOT / "backend" / ".env"
-PLACES = ROOT / "backend" / "data" / "places_mapo.csv"
+PLACES = ROOT / "backend" / "data" / "places_jeju.csv"
 DATA_TS = ROOT / "frontend" / "src" / "planner" / "data.ts"
 OUT_JSON = ROOT / "backend" / "data" / "walk_legs.json"
 ROUTES_TS = ROOT / "frontend" / "src" / "planner" / "routes.ts"
