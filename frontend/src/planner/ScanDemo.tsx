@@ -5,7 +5,9 @@ import type { YoutubeTaste } from './api'
 import type { Sources } from './logic'
 import type { Swipe } from './tasteType'
 import { scanSteps } from './logic'
-import { DataSourceScreen, SCAN_INTAKE_MS, SCAN_STEP_MS, ScanningScreen } from './PlannerApp'
+import { DataSourceScreen } from '../taste/DataSourceScreen'
+import { ScanningScreen } from '../taste/ScanningScreen'
+import { SCAN_INTAKE_MS, SCAN_STEP_MS } from '../taste/motion'
 
 const FAKE_YT = {
   likes: 128, subs: 42, categories: [], channels: [], tags: [], topics: [],

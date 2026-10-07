@@ -2,7 +2,8 @@
 // 저장소가 막혀 있어도(사파리 사생활 보호·저장 공간 없음) 읽기는 null, 쓰기는 조용히 무시해서 앱이 죽지 않게 한다.
 // (유튜브 연동 중 잠깐 보관하는 사진 파일은 크기 때문에 IndexedDB를 쓴다 — planner/photoStash.ts)
 import type { Course } from '../planner/data'
-import type { AuthState, Session } from '../planner/PlannerApp'
+import type { AuthState } from '../auth/AuthScreen'
+import type { Session } from '../planner/PlannerApp'
 import type { Sources } from '../planner/logic'
 
 type Area = 'local' | 'session'
