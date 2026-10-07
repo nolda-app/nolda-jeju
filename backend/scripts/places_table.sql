@@ -1,6 +1,6 @@
 -- Supabase SQL Editor에서 한 번 실행 (테이블 없으면 생성).
--- 공개 장소 정보 캐시라 개인정보 없음 -> RLS 안 켬 (anon key로 읽기/쓰기 다 됨).
--- 나중에 사용자 데이터가 섞이면 그때 RLS 붙이기.
+-- 공개 장소 정보 캐시라 개인정보 없음 -> 읽기는 누구나(anon key), 쓰기는 service_role(secret) key만.
+-- (새 Supabase 프로젝트는 RLS가 기본으로 켜져 있어 정책이 없으면 anon key로 0행이 읽힌다)
 create table if not exists places (
   id uuid primary key,
   name text not null,
@@ -17,3 +17,7 @@ create table if not exists places (
   price_per_person integer,
   fetched_at timestamptz default now()
 );
+
+alter table places enable row level security;
+drop policy if exists "places public read" on places;
+create policy "places public read" on places for select using (true);

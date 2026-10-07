@@ -1,4 +1,4 @@
-"""places_mapo.csv(장소) + places_mapo_with_inferred_tags.csv(블로그 리뷰로 추론한 태그)
+"""places_jeju.csv(장소) + places_jeju_with_inferred_tags.csv(블로그 리뷰로 추론한 태그)
 + place_details_selenium.csv(전화/영업시간/가격) + place_images.csv(대표사진 S3 URL)를 합쳐
 Supabase `places` 테이블에 upsert. 테이블은 미리 scripts/places_table.sql로 만들어둬야 함.
 
@@ -18,8 +18,8 @@ load_dotenv(ROOT / "backend" / ".env")
 from db import get_client  # noqa: E402
 from places import image_urls, load_places_csv  # noqa: E402
 
-MAPO_CSV = ROOT / "backend" / "data" / "places_mapo.csv"
-TAGS_CSV = ROOT / "backend" / "data" / "places_mapo_with_inferred_tags.csv"  # 태그가 더 많이 채워진 파일 (없으면 MAPO_CSV)
+MAPO_CSV = ROOT / "backend" / "data" / "places_jeju.csv"
+TAGS_CSV = ROOT / "backend" / "data" / "places_jeju_with_inferred_tags.csv"  # 태그가 더 많이 채워진 파일 (없으면 MAPO_CSV)
 DETAILS_CSV = ROOT / "backend" / "data" / "place_details_selenium.csv"
 BATCH = 200
 

@@ -1,4 +1,4 @@
-"""backend/data/places_mapo.csv(장소 수집 파이프라인 최종본) 좌표 채우기·필터·분류 점검.
+"""backend/data/places_jeju.csv(scripts/collect_visitjeju.py 산출물, 장소 수집 파이프라인 최종본) 좌표 채우기·필터·분류 점검.
   (장소 데이터는 Supabase `places`에 있음 — DB 반영은 scripts/load_places_to_db.py)
 
 - 좌표 없는 행(주로 블로그 팝업)은 주소로 네이버 Geocoding 해서 채움 (결과는 geocode_cache.json에 저장, 재호출 안 함)
@@ -14,7 +14,7 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "backend" / "data" / "places_mapo.csv"
+SRC = ROOT / "backend" / "data" / "places_jeju.csv"
 CACHE = ROOT / "backend" / "data" / "geocode_cache.json"
 ENV = ROOT / "backend" / ".env"
 GEOCODE_URL = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode"
@@ -24,7 +24,7 @@ KEEP = re.compile(
     r"음식점|한식|양식|일식|중식|분식|이탈리아음식|육류|카페|디저트|베이커리|브런치|술집"
     r"|노래방|보드카페|볼링장|오락실|만화방|암벽등반|스크린야구|야구연습장|멀티방|방탈출|당구장|PC방|찜질|사우나|목욕|공방|꽃꽂이|캠핑|테마파크|레저,테마"
     r"|전시|갤러리|화랑|복합문화공간|영화관|박물관|팝업스토어|서점"
-    r"|공원|전망대|유적지|거리,골목|도보코스|동물원|시장"
+    r"|관광지|공원|전망대|유적지|거리,골목|도보코스|동물원|시장"
     r"|헬스장|요가원|필라테스|스포츠시설|배드민턴장|구민체육센터"
 )
 # KEEP에 걸려도 제외할 업종
@@ -35,8 +35,8 @@ NAME_KEEP = re.compile(r"클라이밍|배팅센터|산악문화")
 RULES = [
     ("체험", r"방탈출|보드카페|고양이카페|노래방|볼링장|오락실|만화방|암벽등반|스크린야구|야구연습장|멀티방|당구장|PC방|찜질|사우나|목욕|공방|꽃꽂이|캠핑|테마파크|레저,테마"),
     ("운동", r"헬스장|요가원|필라테스|스포츠시설|배드민턴장|구민체육센터"),
-    ("문화", r"전시|갤러리|화랑|복합문화공간|영화관|박물관|팝업스토어|서점"),
-    ("산책", r"공원|전망대|유적지|거리,골목|도보코스|시장|동물원"),
+    ("문화", r"미술관|전시|갤러리|화랑|복합문화공간|영화관|박물관|팝업스토어|서점"),
+    ("산책", r"관광지|공원|전망대|유적지|거리,골목|도보코스|시장|동물원"),
     ("한잔", r"술집"),
     ("식사", r"브런치|음식점>(?!카페)|한식|양식|일식|중식|분식|이탈리아음식|육류"),
     ("카페", r"카페|디저트|베이커리"),

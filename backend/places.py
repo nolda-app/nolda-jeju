@@ -1,6 +1,6 @@
 """코스 생성용 장소 후보 — Supabase `places` 테이블에서 읽음.
 
-load_places_csv: 원본 CSV(data/places_mapo.csv + data/geocode_cache.json)에서 읽기. DB 적재 스크립트(scripts/load_places_to_db.py)용.
+load_places_csv: 원본 CSV(data/places_jeju.csv + data/geocode_cache.json)에서 읽기. DB 적재 스크립트(scripts/load_places_to_db.py)용.
 필터·분류·중복 제거 규칙은 scripts/build_places_geo.py와 같다.
 """
 import csv, html, json, math
@@ -18,6 +18,8 @@ AREA_CENTERS = {
 }
 AREA_RADIUS_M = {"중문": 2500, "성산": 2000}  # 관광단지·일출봉 주변이 넓게 퍼져 있음
 DEFAULT_RADIUS_M = 1500  # 제주는 마포보다 장소 밀도가 낮음
+# DB엔 예전 마포 장소도 남아 있어서 위도로 제주만 읽는다 (마포로 돌아가려면 (37.4, 37.7))
+REGION_LAT = (33.0, 34.0)
 
 
 def meters(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -34,10 +36,33 @@ IMAGES_CSV = Path(__file__).parent / "data" / "place_images.csv"
 
 @lru_cache(maxsize=1)
 def image_urls() -> dict[str, str]:
-    if not IMAGES_CSV.exists():
+    out: dict[str, str] = {}
+    # 비짓제주 장소는 수집할 때 받은 대표사진(repPhoto)을 그대로 쓴다
+    if SRC.exists():
+        with open(SRC, encoding="utf-8-sig", newline="") as f:
+            for r in csv.DictReader(f):
+                try:
+                    img = ((json.loads(r.get("raw_json") or "{}").get("repPhoto") or {}).get("photoid") or {}).get("imgpath")
+                except ValueError:
+                    img = None
+                if img:
+                    out[r["id"]] = img
+    if IMAGES_CSV.exists():
+        with open(IMAGES_CSV, encoding="utf-8-sig", newline="") as f:
+            out.update({r["pid"]: r["image_url"] for r in csv.DictReader(f) if r["status"] == "ok" and r["image_url"]})
+    return out
+
+
+# 인기도 0~1 (Tmap 내비 관광객 도착 수 백분위, scripts/build_popularity.py). 없는 곳은 0
+POPULARITY_CSV = Path(__file__).parent / "data" / "place_popularity.csv"
+
+
+@lru_cache(maxsize=1)
+def popularity() -> dict[str, float]:
+    if not POPULARITY_CSV.exists():
         return {}
-    with open(IMAGES_CSV, encoding="utf-8-sig", newline="") as f:
-        return {r["pid"]: r["image_url"] for r in csv.DictReader(f) if r["status"] == "ok" and r["image_url"]}
+    with open(POPULARITY_CSV, encoding="utf-8-sig", newline="") as f:
+        return {r["pid"]: float(r["pop"]) for r in csv.DictReader(f)}
 
 
 @lru_cache(maxsize=1)
@@ -61,6 +86,7 @@ def load_places() -> tuple[dict, ...]:
     while True:
         res = (get_client().table("places")
                .select("*")
+               .gte("lat", REGION_LAT[0]).lt("lat", REGION_LAT[1])
                .order("id").range(start, start + PAGE - 1).execute())
         rows += res.data
         if len(res.data) < PAGE:
@@ -71,6 +97,7 @@ def load_places() -> tuple[dict, ...]:
         "lat": float(r["lat"]), "lng": float(r["lng"]), "kind": r["kind"],
         "area": r["area"], "tags": r["tags"] or [], "hours": r["business_hours"], "price": r["price_per_person"],
         "img": r.get("image_url") or image_urls().get(r["id"]),
+        "pop": popularity().get(r["id"], 0.0),
     } for r in rows if r["lat"] is not None and r["lng"] is not None and r["kind"])
 
 

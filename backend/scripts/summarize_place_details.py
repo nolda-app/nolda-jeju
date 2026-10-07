@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CSV_PATH = ROOT / "backend" / "data" / "place_details_selenium.csv"
-MAPO_CSV = ROOT / "backend" / "data" / "places_mapo.csv"
+MAPO_CSV = ROOT / "backend" / "data" / "places_jeju.csv"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_places_geo import classify  # noqa: E402
@@ -34,7 +34,7 @@ COST_KIND = {"식사": "식사", "카페": "카페", "한잔": "한잔"}
 
 
 def load_category_by_pid() -> dict[str, str]:
-    """place_details_selenium.csv의 pid -> places_mapo.csv 기준 분류(식사/카페/한잔/그 외)"""
+    """place_details_selenium.csv의 pid -> places_jeju.csv 기준 분류(식사/카페/한잔/그 외)"""
     with open(MAPO_CSV, encoding="utf-8-sig", newline="") as f:
         return {r["id"]: COST_KIND.get(classify(r["name"], r["category"])) for r in csv.DictReader(f)}
 DRINK_KEYWORDS = [
