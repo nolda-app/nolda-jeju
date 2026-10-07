@@ -8,6 +8,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        runtimeCaching: [{
+          // 장소 목록 — 캐시를 먼저 보여주고 뒤에서 갱신 (서버가 잠들어 있어도 홈이 바로 뜬다)
+          urlPattern: ({ url }) => url.pathname === '/places',
+          handler: 'StaleWhileRevalidate',
+          options: { cacheName: 'places', expiration: { maxEntries: 1, maxAgeSeconds: 7 * 24 * 3600 } },
+        }],
+      },
       manifest: {
         name: 'NOLDA',
         short_name: 'NOLDA',

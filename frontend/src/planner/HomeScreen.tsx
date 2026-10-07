@@ -1,7 +1,7 @@
 // 앱 첫 화면 — 하단 탭(홈/코스/검색/저장/마이페이지)으로 나뉜 껍데기
 import { useEffect, useMemo, useRef, useState } from 'react'
 import KindThumb from './KindThumb'
-import { allPlaces, loadPlaces, placeInfo } from './geo'
+import { allPlaces, loadPlaces } from './geo'
 import type { Place } from './geo'
 import { COURSES, durLabel, won } from './data'
 import type { Course } from './data'
@@ -17,12 +17,13 @@ const TAB_TITLE: Record<HomeTab, string> = {
   home: '', course: '', search: '검색', my: '마이페이지', saved: '저장',
 }
 
-/** 히어로 배경 — 비짓제주 대표사진 중 바다 풍경.
- *  사진을 바꾸려면 pid만 갈아끼우면 된다. 못 불러오면 아래 그라데이션이 그대로 보인다. */
-const HERO_PIDS = [
-  '612f257f-a156-5298-b48a-dac4063b3635', // 함덕해수욕장
-  'f15cf5c7-6598-52d5-9758-91fa20e0e334', // 광치기해변 — 성산일출봉
-  '470c7ebd-920b-56ac-9853-8e4c34458841', // 협재해수욕장 — 비양도
+/** 히어로 배경 — 비짓제주 대표사진 중 바다 풍경. 장소 목록(/places)을 기다리지 않도록 주소를 바로 적는다.
+ *  못 불러오면 아래 그라데이션이 그대로 보인다. */
+const CDN = 'https://api.cdn.visitjeju.net/photomng/imgpath'
+const HERO_IMGS = [
+  `${CDN}/202408/20/513120bd-dc32-4f3a-9cf1-64d7561990c3.webp`, // 함덕해수욕장
+  `${CDN}/201804/30/315ce1af-1c6c-4977-8668-4710321df6a1.webp`, // 광치기해변 — 성산일출봉
+  `${CDN}/202408/27/e8a13893-251e-4acc-9657-34ba532426ad.webp`, // 협재해수욕장 — 비양도
 ]
 
 /** '이런 코스도 좋아요' — 눌러서 검색 탭의 해당 종류로 넘어간다 */
@@ -91,22 +92,20 @@ function courseSummary(c: Course) {
 /** 히어로 — 화면 맨 위에 붙박이로 있고 스크롤하지 않는다. 아래 내용만 그 위로 덮으며 움직인다.
  *  코스 만들기 버튼은 여기 두지 않고 화면 하단에 하나만 고정한다 (HomeScreen).
  *  배경 사진은 제자리에서 천천히 바뀌고, 보이는 동안 아주 조금씩 확대된다. */
-function Hero({ ready }: { ready: boolean }) {
+function Hero() {
   const [i, setI] = useState(0)
 
   useEffect(() => {
-    if (!ready) return
-    const t = setInterval(() => setI((n) => (n + 1) % HERO_PIDS.length), HERO_MS)
+    const t = setInterval(() => setI((n) => (n + 1) % HERO_IMGS.length), HERO_MS)
     return () => clearInterval(t)
-  }, [ready])
+  }, [])
 
   return (
     <div className="pl-hero">
       <div className="pl-hero-bgs" aria-hidden>
-        {ready && HERO_PIDS.map((pid, n) => {
-          const img = placeInfo(pid)?.img
-          return img ? <img key={pid} className={'pl-hero-bg' + (n === i ? ' on' : '')} src={img} alt="" /> : null
-        })}
+        {HERO_IMGS.map((src, n) => (
+          <img key={src} className={'pl-hero-bg' + (n === i ? ' on' : '')} src={src} alt="" />
+        ))}
       </div>
       <div className="pl-hero-shade" aria-hidden />
       <div className="pl-hero-body">
@@ -292,7 +291,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
         {home && (
           <>
             {/* 배너는 제자리에 붙어 있고(sticky), 아래 장이 그 위를 덮으며 올라간다 */}
-            <Hero ready={ready} />
+            <Hero />
 
             <div className="pl-homesheet">
             <RecCourses ready={ready} onOpen={onOpenCourse} onAll={() => setTab('course')} />

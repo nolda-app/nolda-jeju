@@ -557,7 +557,7 @@ export default function PlannerApp() {
   const fixedIds = useMemo(() => new Set(COURSES.map((c) => c.id)), [])
   // 검색 목록: 이번에 만든 AI 코스 (AI가 실패했으면 화면이 완전히 비어 보이지 않게 고정 코스로 대체)
   const built: BuiltCourse[] = useMemo(() => {
-    if (ai.status === 'error') return builtAll.filter((c) => fixedIds.has(c.id))
+    if (ai.status === 'error' || ai.status === 'loading') return builtAll.filter((c) => fixedIds.has(c.id))
     return ai.ids.map((id) => builtAll.find((c) => c.id === id)).filter(Boolean) as BuiltCourse[]
   }, [builtAll, ai.ids, ai.status, fixedIds])
   const filtered = built.filter((c) => matchCond(c, cond))
@@ -1316,7 +1316,7 @@ function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, taste, 
       <div className="pl-scroll" style={{ padding: '16px 20px 96px', borderTop: '1px solid rgba(20,24,33,.06)' }}>
         <AiBanner ai={ai} generateAi={generateAi} courses={built} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {ai.status === 'loading'
+          {ai.status === 'loading' && !filtered.length
             ? [0, 1, 2, 3].map((i) => <CourseCardSkeleton key={i} />)
             : filtered.map((s) => (
               <CourseCard key={s.id} s={s} onOpen={() => openCourse(s.id)} />
@@ -1366,7 +1366,7 @@ function AiBanner({ ai, generateAi, courses }: { ai: AiState; generateAi: () => 
         <span className="pl-spinner" />
         <div style={{ flex: 1 }}>
           <div className="pl-aibanner-t">취향에 맞는 코스를 AI가 만들고 있어요</div>
-          <div className="pl-aibanner-s">고른 시간을 꽉 채우는 코스 4개를 짜는 중 · 30초~1분 정도 걸려요</div>
+          <div className="pl-aibanner-s">30초~1분 걸려요 · 그동안 아래 기본 코스를 먼저 둘러보세요</div>
         </div>
       </div>
     )
