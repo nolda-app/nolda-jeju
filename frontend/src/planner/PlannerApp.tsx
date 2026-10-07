@@ -15,7 +15,8 @@ import type { Swipe } from './tasteType'
 import { stashPhotos, takePhotos } from './photoStash'
 import { loadPlaces, placeGeo } from './geo'
 import { useWalkLegs } from './useWalkLegs'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 import { analyzeTaste, deleteSavedCourse, fetchAiCourses, fetchCourse, fetchMe, fetchPlaceDetails, fetchSavedCourses, putSavedCourse, fetchYoutubeTaste, googleLoginUrl, kakaoLoginUrl, updateMe, youtubeAuthorizeUrl } from './api'
 import type { AuthFailure } from './api'
 import type { PlaceDetail, TasteProfile, TasteTopic, YoutubeTaste } from './api'
@@ -25,9 +26,6 @@ import type { Course } from './data'
 import { analyzeYoutubeOnly, applyPicks, build, matchCond, reportFromProfile, scanSteps } from './logic'
 import type { Picks, Report, Taste, BuiltCourse, Sources } from './logic'
 import './planner.css'
-
-type ScanPhase = 'ask' | 'scanning' | 'summary'
-type Tab = 'search' | 'saved'
 
 interface AuthState {
   mode: 'login' | 'signup'
@@ -61,13 +59,27 @@ const PENDING_KEY = 'nolda:yt-pending'
 const LOGIN_TOKEN_KEY = 'nolda:login-token'
 // 유튜브 집계 결과 id — 한 번 연동하면 로그아웃 전까지 다시 구글을 거치지 않는다
 const YT_ID_KEY = 'nolda:yt-id'
-// 로그인하러 갈 때 '끝나면 어디로 돌아갈지'를 적어둔다.
+// 로그인하러 갈 때 '끝나면 어느 경로로 돌아갈지'를 적어둔다.
 // 소셜 로그인은 페이지를 통째로 새로 열어서 화면 상태가 사라지기 때문에 저장이 필요하다.
 const AFTER_LOGIN_KEY = 'nolda:after-login'
 const SAVED_KEY = 'nolda:saved-courses' // 저장한 코스(Course 전체) — 새로고침·로그인 없이도 유지
 // 로그인 성공 때마다 갱신 — 토큰이 만료돼 다시 로그인해야 할 때도 남아있어서 "마지막으로 OO로 로그인했어요" 안내에 씀
 const LAST_PROVIDER_KEY = 'nolda:last-login-provider'
-// 이 기기에서 로그인 화면을 처음 보는지 — 상단 문구를 '처음이시네요!' / '다시 왔네요!'로 나누는 데 씀
+// 분석 결과·만든 코스 목록 — 새로고침해도 그 화면을 그대로 이어 보이게 (탭을 닫으면 사라짐)
+const SESSION_KEY = 'nolda:session'
+const SPLASH_KEY = 'nolda:splashed' // 로고 화면은 탭(세션)당 한 번만
+
+/*
+ * 경로 = 화면. 새로고침·뒤로가기·주소 직접 입력 모두 경로만 보고 같은 화면을 그린다.
+ *   /  /search  /bookmarks  /my     홈과 홈의 탭
+ *   /login                          로그인
+ *   /start  /analyze  /result       취향 분석 (데이터 고르기 → 분석 중 → 요약)
+ *   /courses  /saved                코스 목록 · 저장한 코스
+ *   /course/:id  /course/:id/live   코스 상세 · 코스 진행(전체 화면 지도) — 로그인 없이 공유 링크로도 열림
+ */
+const HOME_PATH: Record<Exclude<HomeTab, 'course'>, string> = { home: '/', search: '/search', saved: '/bookmarks', my: '/my' }
+const AUTH_PATHS = ['/start', '/analyze', '/result', '/courses', '/saved'] // 로그인해야 들어가는 화면
+const APP_TAB: Record<string, 'search' | 'saved'> = { '/courses': 'search', '/saved': 'saved' }
 
 function readPending(): { auth: AuthState; sources: Sources } | null {
   try {
@@ -79,12 +91,56 @@ function readPending(): { auth: AuthState; sources: Sources } | null {
   }
 }
 
+// 소셜 로그인·유튜브 연동·옛 공유 링크(?course=)는 페이지를 새로 열고 '/?...'로 돌아온다 — 처음 한 번만 읽는다
+function readEntry() {
+  const q = new URLSearchParams(window.location.search)
+  return { yt: q.get('yt'), ytError: q.get('yt_error'), loginToken: q.get('login_token'), loginError: q.get('login_error'), course: q.get('course') }
+}
+
+const rememberAfterLogin = (path: string) => { try { sessionStorage.setItem(AFTER_LOGIN_KEY, path) } catch { /* 기본 흐름대로 */ } }
+const afterLoginPath = () => {
+  try {
+    const p = sessionStorage.getItem(AFTER_LOGIN_KEY)
+    if (p?.startsWith('/')) return p
+  } catch { /* 기본 흐름대로 */ }
+  return '/start'
+}
+
+interface Session {
+  report: Report | null
+  taste: Taste
+  tags: string[]
+  picks: Picks
+  intent: string | null
+  hourRange: [number, number] | null
+  cond: typeof DEFAULT_COND
+  swipes: Swipe[]
+  done: boolean
+  aiIds: string[]
+  pool: Course[]
+}
+function readSession(): Partial<Session> {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}') } catch { return {} }
+}
+
 export default function PlannerApp() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [entry] = useState(readEntry)
+  const [snap] = useState(readSession)
+
+  // 지금 경로가 어떤 화면인지
+  const path = location.pathname.replace(/(.)\/+$/, '$1')
+  const courseMatch = path.match(/^\/course\/([^/]+)(\/live)?$/)
+  const openId = courseMatch ? decodeURIComponent(courseMatch[1]) : null
+  const liveId = courseMatch?.[2] ? openId : null
+  const homeTab = (Object.keys(HOME_PATH) as (keyof typeof HOME_PATH)[]).find((k) => HOME_PATH[k] === path) || null
+
   const [auth, setAuthState] = useState<AuthState>(() => ({
     mode: 'login', name: '', email: '', pw: '', error: '', user: null, skipped: false,
     // 저장된 토큰을 처음부터 들고 시작한다. 서버 확인(fetchMe)이 늦거나 실패해도
     // 그동안 로그인 화면이 뜨지 않게 하려는 것 — 확인되면 user가 채워진다
-    token: (() => { try { return localStorage.getItem(LOGIN_TOKEN_KEY) } catch { return null } })(),
+    token: entry.loginToken || (() => { try { return localStorage.getItem(LOGIN_TOKEN_KEY) } catch { return null } })(),
   }))
   // 소셜 로그인에서 리디렉션으로 돌아왔는데 실패했을 때 보여줄 전용 화면 (폼 안 작은 에러 문구랑 별개)
   const [loginError, setLoginError] = useState<string | null>(null)
@@ -92,19 +148,19 @@ export default function PlannerApp() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [ytError, setYtError] = useState('')
   const [ytLoading, setYtLoading] = useState(false)
-  const [scan, setScan] = useState<ScanPhase>('ask')
+  // 분석이 돌고 있는지 — 새로고침하면 분석은 이어갈 수 없어 /analyze가 /start로 돌아간다
+  const [scanning, setScanning] = useState(!!entry.yt)
   const [scanN, setScanN] = useState(0)
-  const [report, setReport] = useState<Report | null>(null)
-  const [taste, setTaste] = useState<Taste>({})
-  const [tags, setTags] = useState<string[]>([])
+  const [report, setReport] = useState<Report | null>(snap.report ?? null)
+  const [taste, setTaste] = useState<Taste>(snap.taste ?? {})
+  const [tags, setTags] = useState<string[]>(snap.tags ?? [])
   // 동적 주제에서 고른 답 (주제 key → 고른 옵션 값들)
-  const [picks, setPicks] = useState<Picks>({})
-  const [intent, setIntent] = useState<string | null>(null)
+  const [picks, setPicks] = useState<Picks>(snap.picks ?? {})
+  const [intent, setIntent] = useState<string | null>(snap.intent ?? null)
   // 시간대 막대에서 고른 시작·종료 시각 (안 건드렸으면 시간대 구간 기본값)
-  const [hourRange, setHourRangeState] = useState<[number, number] | null>(null)
-  const [cond, setCond] = useState({ ...DEFAULT_COND })
+  const [hourRange, setHourRangeState] = useState<[number, number] | null>(snap.hourRange ?? null)
+  const [cond, setCond] = useState(snap.cond ?? { ...DEFAULT_COND })
   const [sheetKey, setSheetKey] = useState<string | null>(null)
-  const [openId, setOpenId] = useState<string | null>(null)
   // 저장한 코스: 이 기기(localStorage)에 보관하고, 로그인했으면 DB(saved_courses)와도 맞춤
   const [savedInit] = useState<Course[]>(() => {
     try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]') as Course[] } catch { return [] }
@@ -117,20 +173,11 @@ export default function PlannerApp() {
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = window.setTimeout(() => setToast(''), 2200)
   }
-  // 공유 링크(?course=id)로 들어오면 로그인·분석 없이 그 코스부터 보여줌
-  const [sharedId, setSharedId] = useState(() => new URLSearchParams(window.location.search).get('course'))
-  const [liveId, setLiveId] = useState<string | null>(null) // 코스 시작(전체 화면 지도) 중인 코스
   const [booked, setBooked] = useState<string[]>([])
-  const [tab, setTab] = useState<Tab>('search')
-  // 소셜 로그인·유튜브 연동은 페이지를 통째로 새로 열고 돌아온다.
-  // 그때는 로고 화면과 홈을 건너뛰어야 하던 흐름(분석 등)이 이어진다.
-  const [returning] = useState(() => {
-    const q = new URLSearchParams(window.location.search)
-    return ['yt', 'yt_error', 'login_token', 'login_error', 'course'].some((k) => q.has(k))
+  // 앱 실행 직후 로고 — 홈으로 처음 들어왔을 때만 (다른 경로·리디렉션 복귀·새로고침은 건너뜀)
+  const [splash, setSplash] = useState(() => {
+    try { return !window.location.search && window.location.pathname === '/' && !sessionStorage.getItem(SPLASH_KEY) } catch { return false }
   })
-  const [splash, setSplash] = useState(!returning) // 앱 실행 직후 로고 (세션당 1회)
-  const [atHome, setAtHome] = useState(!returning) // 홈 화면에 머무는 중인지 — 배너·로그인 버튼을 눌러야 벗어난다
-  const [homeTab, setHomeTab] = useState<HomeTab>('home') // 홈의 어느 탭인지 — 코스 화면 탭바에서도 이걸 바꾼다
   // 연동해 둔 유튜브 집계 결과. 있으면 분석을 다시 해도 구글 동의를 또 받지 않는다
   const [ytId, setYtIdState] = useState<string | null>(() => {
     try { return localStorage.getItem(YT_ID_KEY) } catch { return null }
@@ -139,55 +186,56 @@ export default function PlannerApp() {
     setYtIdState(id)
     try { id ? localStorage.setItem(YT_ID_KEY, id) : localStorage.removeItem(YT_ID_KEY) } catch { /* 이번 세션만 유지 */ }
   }
-  const [done, setDone] = useState(false)
-  const [ai, setAi] = useState<AiState>(AI_IDLE)
+  // 분석을 끝냈거나 건너뛰어 코스 화면까지 간 적이 있는지 — 홈 '코스' 탭이 분석부터일지 목록일지 정한다
+  const [done, setDone] = useState(!!snap.done)
+  const [ai, setAi] = useState<AiState>(() => (snap.aiIds?.length ? { status: 'done', ids: snap.aiIds, error: '' } : AI_IDLE))
   // 받은 AI 코스는 계속 보관 — 다시 만들어도 저장한 코스가 사라지지 않게
-  const [aiPool, setAiPool] = useState<Record<string, Course>>(() => Object.fromEntries(savedInit.map((c) => [c.id, c])))
+  const [aiPool, setAiPool] = useState<Record<string, Course>>(() => Object.fromEntries([...savedInit, ...(snap.pool ?? [])].map((c) => [c.id, c])))
   const aiAbort = useRef<AbortController | null>(null)
   const [modalClosing, setModalClosing] = useState(false)
   const closeTimer = useRef<number | null>(null)
-
-  // 코스 상세 닫기 — 내려가는 모션이 끝난 뒤 제거 (움직임 줄이기 설정이면 바로)
-  const closeModal = (after?: () => void) => {
-    if (closeTimer.current) return
-    const finish = () => { closeTimer.current = null; setModalClosing(false); setOpenId(null); after?.() }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return finish()
-    setModalClosing(true)
-    closeTimer.current = window.setTimeout(finish, MODAL_CLOSE_MS)
-  }
-
-  // URL 경로 라우팅 — / (검색), /saved (저장한 코스), /course/:id (코스 상세), /course/:id/live (실시간 진행).
-  // 별도 라이브러리 없이 History API로 tab·openId·liveId와 주소를 양방향으로 맞춘다.
-  const skipNextPush = useRef(false)
-  useEffect(() => {
-    const applyFromLocation = () => {
-      const path = window.location.pathname
-      const courseMatch = path.match(/^\/course\/([^/]+)(\/live)?\/?$/)
-      skipNextPush.current = true
-      if (courseMatch) { setTab('search'); setOpenId(courseMatch[1]); setLiveId(courseMatch[2] ? courseMatch[1] : null) }
-      else if (path === '/saved') { setTab('saved'); setOpenId(null); setLiveId(null) }
-      else { setTab('search'); setOpenId(null); setLiveId(null) }
-      // 홈·온보딩이 아니라 이 경로가 보여주는 화면으로 바로 감 — '저장한 코스' 바로가기(onOpenSaved)와 같은 처리
-      if (path !== '/') { setAtHome(false); setDone(true) }
-    }
-    window.addEventListener('popstate', applyFromLocation)
-    applyFromLocation() // 새로고침·직접 접속 시 현재 주소를 최초 상태에 반영
-    return () => window.removeEventListener('popstate', applyFromLocation)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  useEffect(() => {
-    if (skipNextPush.current) { skipNextPush.current = false; return }
-    const path = !done ? '/' : liveId ? `/course/${liveId}/live` : openId ? `/course/${openId}` : tab === 'saved' ? '/saved' : '/'
-    if (window.location.pathname !== path) window.history.pushState(null, '', path)
-  }, [tab, openId, liveId, done])
-
-  const timerRef = useRef<number | null>(null)
-  const t0Ref = useRef(0)
 
   const setAuth = (o: Partial<AuthState>) => setAuthState((st) => ({ ...st, ...o }))
   // 토큰이 있으면 로그인한 사람이다. 서버가 자고 있어(무료 플랜은 15분 뒤 잠든다)
   // 확인이 늦어도 로그인 화면으로 튕기지 않는다. 토큰이 실제로 죽었을 때만 아래에서 지운다
   const authed = !!auth.user || auth.skipped || !!auth.token
+
+  // 코스 상세 뒤에 깔릴 목록 — 목록에서 열었으면 그 목록, 주소로 바로 들어왔으면 코스 목록(분석을 끝낸 사람만)
+  const bg = (location.state as { bg?: string } | null)?.bg ?? (done && authed ? '/courses' : null)
+  const tab = APP_TAB[path] ?? (openId && bg ? APP_TAB[bg] : undefined)
+
+  // 앱 안에서 넘어온 화면이면 브라우저 뒤로가기와 같게, 주소로 바로 들어왔으면 fallback 경로로
+  const back = (fallback: string) => {
+    if (((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0) navigate(-1)
+    else navigate(fallback, { replace: true, state: location.state })
+  }
+  const openCourseFrom = (id: string) => navigate(`/course/${encodeURIComponent(id)}`, { state: { bg: path } })
+
+  // 코스 상세 닫기 — 내려가는 모션이 끝난 뒤 이전 화면으로 (움직임 줄이기 설정이면 바로)
+  const closeModal = () => {
+    if (closeTimer.current) return
+    const finish = () => { closeTimer.current = null; setModalClosing(false); back(bg ?? '/') }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return finish()
+    setModalClosing(true)
+    closeTimer.current = window.setTimeout(finish, MODAL_CLOSE_MS)
+  }
+
+  // 페이지를 새로 열고 돌아온 경우 — 주소의 ?값 대신 알맞은 화면 경로로 바꾼다.
+  // 그려지기 전에(useLayoutEffect) 옮겨야 홈이 잠깐 비치지 않는다
+  useLayoutEffect(() => {
+    const { yt, ytError: ytErr, loginToken, loginError: loginErr, course } = entry
+    if (course) navigate(`/course/${encodeURIComponent(course)}`, { replace: true })
+    else if (yt || ytErr) navigate(yt ? '/analyze' : '/start', { replace: true })
+    else if (loginToken) navigate(afterLoginPath(), { replace: true })
+    else if (loginErr) navigate('/', { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 코스 화면까지 오면 분석을 끝낸 것으로 친다 (주소로 바로 들어온 경우 포함)
+  useEffect(() => { if (tab && authed) setDone(true) }, [tab, authed])
+
+  const timerRef = useRef<number | null>(null)
+  const t0Ref = useRef(0)
 
   const photoUrls = useMemo(() => photoFiles.map((f) => URL.createObjectURL(f)), [photoFiles])
   useEffect(() => () => { photoUrls.forEach((u) => URL.revokeObjectURL(u)) }, [photoUrls])
@@ -201,6 +249,16 @@ export default function PlannerApp() {
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedCourses)) } catch { /* 저장 공간 없음 — 이번 세션만 유지 */ }
   }, [savedCourses])
 
+  // 분석 결과·코스 목록을 세션에 남겨서 새로고침해도 같은 화면을 이어 그린다
+  useEffect(() => {
+    const aiIds = ai.status === 'done' ? ai.ids : []
+    const s: Session = {
+      report, taste, tags, picks, intent, hourRange, cond, swipes, done,
+      aiIds, pool: aiIds.map((id) => aiPool[id]).filter(Boolean),
+    }
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch { /* 저장 공간 없음 — 새로고침하면 처음부터 */ }
+  })
+
   // 로그인하면 DB에 저장해 둔 코스를 가져와 합침
   useEffect(() => {
     if (!auth.token) return
@@ -211,20 +269,6 @@ export default function PlannerApp() {
       })
       .catch((e: Error) => console.error('[saved]', e.message))
   }, [auth.token])
-
-  // 공유 링크로 들어온 코스 불러오기
-  useEffect(() => {
-    if (!sharedId) return
-    fetchCourse(sharedId)
-      // 홈·온보딩 없이 바로 그 코스를 보여줌 — 경로 기반 진입(applyFromLocation)과 같은 처리
-      .then((c) => { setAiPool((p) => ({ ...p, [c.id]: c })); setOpenId(c.id); setDone(true) })
-      .catch((e: Error) => { showToast(`공유된 코스를 열지 못했어요 · ${e.message}`); leaveShared() })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  const leaveShared = () => {
-    window.history.replaceState(null, '', window.location.pathname)
-    setSharedId(null)
-  }
 
   // 장소 데이터(Supabase)를 앱 시작 때 받아 둠 — 받은 뒤 한 번 다시 그려서 지도 핀·장소 정보가 보이게
   const [, setPlacesReady] = useState(false)
@@ -253,7 +297,7 @@ export default function PlannerApp() {
   // 분석이 끝나면 태그·취향 값 (분석 화면이 취향 유형을 발표하는 데 씀)
   const [scanReady, setScanReady] = useState<ScanResult | null>(null)
   // 분석 중 미니 게임에서 스와이프한 장소 — 코스 추천에 '마음에 든/별로인 장소'로 넘김
-  const [swipes, setSwipes] = useState<Swipe[]>([])
+  const [swipes, setSwipes] = useState<Swipe[]>(snap.swipes ?? [])
   const resultGoRef = useRef<(() => void) | null>(null) // '결과 보기'를 누르면 요약 화면으로
 
   const finishScan = async () => {
@@ -266,12 +310,15 @@ export default function PlannerApp() {
     // 분석이 빨리 끝나도 '분석 중' 화면은 잠깐 보여줌
     const [prof] = await Promise.all([profileRef.current, motion ? sleep(SCAN_INTAKE_MS) : null])
     if (!still()) return
-    // LLM 분석이 실패하면 유튜브 키워드 규칙만으로 (사진은 흉내 내지 않는다 — 가짜 결과가 되므로)
+    // LLM 분석이 실패하면 유튜브 키워드 규칙만으로 (사진은 흉내 내지 않는다 — 가짜 결과가 되므로).
+    // 연동은 됐어도 기록이 적어 키워드가 하나도 안 잡혔으면 전부 기본값이라 '유튜브로 맞췄다'고 하지 않는다
+    const h = scanRef.current.yt?.hints
+    const fromYt = !!h && !!(h.mood || h.spend || h.pace || h.tags.length)
     const a = prof
       ? reportFromProfile(prof)
-      : analyzeYoutubeOnly(scanRef.current.yt, scanRef.current.yt
-          ? '취향 분석에 실패해 유튜브 기록만으로 대략 맞췄어요'
-          : '취향 분석에 실패해 기본값으로 맞췄어요')
+      : analyzeYoutubeOnly(scanRef.current.yt, fromYt
+          ? '취향 분석이 잠시 안 돼서 유튜브 기록만으로 대략 맞췄어요'
+          : '취향 분석이 잠시 안 돼서 기본 취향으로 보여드려요. 아래에서 직접 고칠 수 있어요')
     setScanReady({ tags: a.tags, taste: a.taste })
     await new Promise<void>((r) => { resultGoRef.current = r })
     resultGoRef.current = null
@@ -282,14 +329,15 @@ export default function PlannerApp() {
     setTags(a.tags)
     setPicks({})
     setCond((c) => ({ ...c, people: a.party, budget: a.budgetBand }))
-    setScan('summary')
+    setScanning(false)
+    navigate('/result', { replace: true }) // 뒤로가기하면 분석 중 화면이 아니라 데이터 고르기로
   }
 
   /** 사진을 읽어(EXIF·축소) 유튜브 집계와 함께 백엔드로 — 실패하면 null이라 폴백으로 넘어간다 */
   const startProfile = (src: Sources, ytId: string | null, files: File[]) => {
     profileRef.current = (src.photos && files.length ? readPhotos(files) : Promise.resolve([]))
       .then((photos) => (photos.length || ytId ? analyzeTaste({ yt_id: ytId, photos }) : null))
-      .catch((e: Error) => { setYtError(e.message); return null })
+      .catch((e: Error) => { console.error('[taste]', e.message); setYtError(e.message); return null })
   }
 
   const runScan = (src: Sources, ytData: YoutubeTaste | null, photoCount = photoFiles.length) => {
@@ -298,7 +346,7 @@ export default function PlannerApp() {
     scanTokenRef.current++
     setScanReady(null)
     setSwipes([])
-    setScan('scanning')
+    setScanning(true)
     setScanN(0)
     if (timerRef.current) clearInterval(timerRef.current)
     const total = scanSteps(src, ytData, photoCount)
@@ -316,24 +364,33 @@ export default function PlannerApp() {
     }, SCAN_STEP_MS)
   }
 
+  // 분석을 멈추고 데이터 고르기로 (늦게 끝난 분석이 화면을 넘기지 못하게 토큰도 바꾼다)
+  const stopScan = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    scanTokenRef.current++
+    setScanReady(null); setScanning(false); setScanN(0)
+  }
+
   const startScan = () => {
     if (!sources.youtube && !sources.photos) return
     setYtError('')
     if (!sources.youtube) {
       startProfile(sources, null, photoFiles)
-      return runScan(sources, null)
+      runScan(sources, null)
+      return navigate('/analyze')
     }
     // 전에 연동해 둔 결과가 있으면 구글을 다시 거치지 않는다
     if (ytId) {
-      setScan('scanning')
+      setScanning(true)
       setYtLoading(true)
+      navigate('/analyze')
       fetchYoutubeTaste(ytId)
         .then((data) => { startProfile(sources, ytId, photoFiles); runScan(sources, data, photoFiles.length) })
-        .catch(() => { setYtId(null); setScan('ask'); setYtError('유튜브 연동이 만료됐어요. 다시 연결해 주세요') })
+        .catch(() => { setYtId(null); stopScan(); navigate('/start', { replace: true }); setYtError('유튜브 연동이 만료됐어요. 다시 연결해 주세요') })
         .finally(() => setYtLoading(false))
       return
     }
-    // 처음이면 구글 로그인 페이지로 이동 → 백엔드가 집계 후 ?yt=<id>로 돌려보냄
+    // 처음이면 구글 로그인 페이지로 이동 → 백엔드가 집계 후 /?yt=<id>로 돌려보냄
     try {
       const url = youtubeAuthorizeUrl()
       try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ auth: { ...auth, pw: '' }, sources })) } catch { /* 저장 불가 시 돌아와서 로그인만 다시 */ }
@@ -344,18 +401,18 @@ export default function PlannerApp() {
     }
   }
 
-  // 구글 로그인에서 돌아왔을 때: 로그인·선택 복원 → 집계 결과 받아서 분석 시작
+  // 구글 로그인에서 돌아왔을 때: 로그인·선택 복원 → 집계 결과 받아서 분석 시작.
+  // StrictMode가 effect를 두 번 돌려도 한 번만 (readPending이 저장값을 지우므로)
+  const ytHandled = useRef(false)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const id = params.get('yt'), err = params.get('yt_error')
-    if (!id && !err) return
-    window.history.replaceState(null, '', window.location.pathname)
+    const { yt: id, ytError: err } = entry
+    if ((!id && !err) || ytHandled.current) return
+    ytHandled.current = true
     const pending = readPending()
     const src = pending?.sources || { youtube: true, photos: false }
     if (pending) { setAuthState(pending.auth); setSources(src) }
     if (err) return setYtError(err === 'access_denied' ? '유튜브 연결을 취소했어요' : '유튜브 연결에 실패했어요')
     setYtId(id!)
-    setScan('scanning')
     setYtLoading(true)
     Promise.all([fetchYoutubeTaste(id!), src.photos ? takePhotos() : Promise.resolve([] as File[])])
       .then(([data, files]) => {
@@ -364,16 +421,17 @@ export default function PlannerApp() {
         startProfile(s, id!, files)
         runScan(s, data, files.length)
       })
-      .catch((e: Error) => { setScan('ask'); setYtError(e.message) })
+      .catch((e: Error) => { stopScan(); navigate('/start', { replace: true }); setYtError(e.message) })
       .finally(() => setYtLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 카카오 로그인에서 돌아왔을 때(?login_token=) 또는 새로고침 시 저장해둔 토큰으로 로그인 상태 복원
+  // 소셜 로그인에서 돌아왔을 때(?login_token=) 또는 새로고침 시 저장해둔 토큰으로 로그인 상태 복원
+  const loginHandled = useRef(false)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const fresh = params.get('login_token'), err = params.get('login_error')
-    if (fresh || err) window.history.replaceState(null, '', window.location.pathname)
+    if (loginHandled.current) return
+    loginHandled.current = true
+    const fresh = entry.loginToken, err = entry.loginError
     if (err) {
       // 'cancelled'·'access_denied'는 카카오가 주는 짧은 코드, 그 외엔 백엔드가 보낸 실제 에러 문장
       const known: Record<string, string> = { cancelled: '카카오 로그인을 취소했어요.', access_denied: '카카오 로그인을 취소했어요.' }
@@ -382,13 +440,6 @@ export default function PlannerApp() {
     }
     const token = fresh || localStorage.getItem(LOGIN_TOKEN_KEY)
     if (!token) return
-    if (fresh) {
-      // 로그인만 하려던 거였으면 분석으로 끌고 가지 않고 홈으로 되돌린다
-      try {
-        if (sessionStorage.getItem(AFTER_LOGIN_KEY) === 'home') setAtHome(true)
-        sessionStorage.removeItem(AFTER_LOGIN_KEY)
-      } catch { /* 저장 불가 시 기본 흐름대로 */ }
-    }
     fetchMe(token)
       .then((me) => {
         localStorage.setItem(LOGIN_TOKEN_KEY, token)
@@ -409,12 +460,12 @@ export default function PlannerApp() {
 
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === 'visible' && scan === 'scanning' && !ytLoading) void finishScan()
+      if (document.visibilityState === 'visible' && scanning && !ytLoading) void finishScan()
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scan, ytLoading])
+  }, [scanning, ytLoading])
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
@@ -461,24 +512,26 @@ export default function PlannerApp() {
   }
   const resetAi = () => { aiAbort.current?.abort(); setAi(AI_IDLE) }
 
-  // 결과 화면에 처음 들어오면 AI 코스 생성 (실패해도 고정 코스는 그대로 보임)
+  // 코스 목록이 보이면 AI 코스 생성 (실패해도 고정 코스는 그대로 보임 · 새로고침이면 세션에 남은 목록을 그대로 씀)
   useEffect(() => {
-    if (done && ai.status === 'idle') generateAi()
+    if (tab === 'search' && authed && ai.status === 'idle') generateAi()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [done, ai.status])
+  }, [tab, authed, ai.status])
   useEffect(() => () => aiAbort.current?.abort(), [])
 
   const skipScan = () => {
     setTaste({ mood: 'calm', crowd: 'mid', hour: 'noon', spend: 'cafe', pace: 'mid' })
-    setTags([]); setDone(true); setScan('summary')
+    setTags([]); setDone(true)
+    navigate('/courses')
   }
-  const rescan = () => { setScan('ask'); setScanN(0); setReport(null) }
-  // 분석을 처음부터 다시 — 로그인은 건드리지 않는다
+  const rescan = () => { setScanN(0); setReport(null); navigate('/start', { replace: true }) }
+  // 분석을 처음부터 다시 — 로그인은 건드리지 않는다. 화면 이동은 부르는 쪽이 정한다
   const restart = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    setScan('ask'); setScanN(0); setReport(null); setIntent(null); setTaste({}); setTags([]); setDone(false); setHourRangeState(null)
-    setCond({ ...DEFAULT_COND }); setSheetKey(null); setOpenId(null); setTab('search'); resetAi(); setYtError('')
+    stopScan()
+    setReport(null); setIntent(null); setTaste({}); setTags([]); setPicks({}); setSwipes([]); setDone(false); setHourRangeState(null)
+    setCond({ ...DEFAULT_COND }); setSheetKey(null); resetAi(); setYtError('')
   }
+  const startOver = () => { restart(); navigate('/start') }
 
   // 로그아웃 — 분석 상태를 되돌리고 토큰·유튜브 연동까지 끊는다.
   // 화면 안의 '뒤로/처음으로' 버튼이 이걸 부르면 안 된다 (멀쩡한 로그인이 풀린다)
@@ -510,6 +563,22 @@ export default function PlannerApp() {
   const filtered = built.filter((c) => matchCond(c, cond))
   const openCourse = builtAll.find((c) => c.id === openId) || null
   const liveCourse = builtAll.find((c) => c.id === liveId) || null
+
+  // 가진 적 없는 코스 주소(공유 링크·새로고침)면 서버에서 받아온다
+  useEffect(() => {
+    if (!openId || openCourse) return
+    let alive = true
+    fetchCourse(openId)
+      .then((c) => { if (alive) setAiPool((p) => ({ ...p, [c.id]: c })) })
+      .catch((e: Error) => {
+        if (!alive) return
+        showToast(`코스를 열지 못했어요 · ${e.message}`)
+        navigate(bg ?? '/', { replace: true })
+      })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId])
+
   const toggleSave = (id: string) => {
     const on = saved.indexOf(id) < 0
     setSaved((s) => (on ? s.concat([id]) : s.filter((x) => x !== id)))
@@ -526,7 +595,7 @@ export default function PlannerApp() {
   const shareEl = shareOf && (
     <ShareSheet
       course={shareOf}
-      url={aiPool[shareOf.id]?.shareable ? `${window.location.origin}${window.location.pathname}?course=${shareOf.id}` : ''}
+      url={aiPool[shareOf.id]?.shareable ? `${window.location.origin}/course/${encodeURIComponent(shareOf.id)}` : ''}
       onClose={() => setShareOf(null)}
       toast={showToast}
     />
@@ -536,42 +605,15 @@ export default function PlannerApp() {
   const toastEl = toast && <div className="pl-toast" role="status">{toast}</div>
   const sheet = COND.find((c) => c.key === sheetKey) || null
 
-  // 공유 링크로 들어온 경우: 코스 상세만 보여주고, 닫으면 처음 화면으로
-  if (sharedId) {
-    return (
-      <div className="pl-app">
-        {openCourse ? (
-          <CourseModal
-            course={openCourse}
-            isSaved={saved.indexOf(openCourse.id) > -1}
-            booked={booked}
-            toggleBook={(key) => setBooked((b) => (b.indexOf(key) > -1 ? b.filter((x) => x !== key) : b.concat([key])))}
-            toggleSave={() => toggleSave(openCourse.id)}
-            start={() => setLiveId(openCourse.id)}
-            share={() => share(openCourse)}
-            close={() => closeModal(leaveShared)}
-            closing={modalClosing}
-          />
-        ) : (
-          <div style={{ padding: '120px 24px', textAlign: 'center', font: '600 14px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>공유된 코스를 불러오고 있어요</div>
-        )}
-        {liveCourse && (
-          <LiveCourse course={liveCourse} isSaved={saved.indexOf(liveCourse.id) > -1} toggleSave={() => toggleSave(liveCourse.id)} onClose={() => setLiveId(null)} />
-        )}
-        {shareEl}
-        {toastEl}
-      </div>
-    )
-  }
   if (loginError) {
     return (
-      <LoginErrorScreen message={loginError} goHome={() => setLoginError(null)} />
+      <LoginErrorScreen message={loginError} goHome={() => { setLoginError(null); navigate('/') }} />
     )
   }
   if (splash) {
-    return <SplashScreen onDone={() => setSplash(false)} />
+    return <SplashScreen onDone={() => { try { sessionStorage.setItem(SPLASH_KEY, '1') } catch { /* 다음에 또 보여도 무방 */ } setSplash(false) }} />
   }
-  if (atHome) {
+  if (homeTab) {
     return (
       <HomeScreen
         authed={authed}
@@ -589,130 +631,134 @@ export default function PlannerApp() {
             return (e as Error).message
           }
         }}
-        onLogout={() => {
-          // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
-          logout()
-          setHomeTab('home')
-          setAtHome(true)
-        }}
-        onLogin={() => {
-          try { sessionStorage.setItem(AFTER_LOGIN_KEY, 'home') } catch { /* 기본 흐름대로 */ }
-          setAtHome(false)
-        }}
+        // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
+        onLogout={() => { logout(); navigate('/') }}
+        // 로그인만 하러 감 — 끝나면 홈으로
+        onLogin={() => { rememberAfterLogin('/'); navigate('/login') }}
         setTab={(t) => {
-          // '코스'는 홈 안의 화면이 아니라 코스 목록으로 나간다
-          if (t !== 'course') return setHomeTab(t)
-          if (!done) restart() // 아직 분석 전이면 사진·유튜브 고르기부터
-          setAtHome(false)
+          // '코스'는 홈 안의 화면이 아니라 코스 목록으로 나간다 (아직 분석 전이면 사진·유튜브 고르기부터)
+          if (t !== 'course') return navigate(HOME_PATH[t])
+          if (done) return navigate('/courses')
+          startOver()
         }}
         // 분석을 이미 끝냈어도 홈에서 다시 시작하면 사진·유튜브 화면부터 보여준다
-        onStart={() => {
-          try { sessionStorage.removeItem(AFTER_LOGIN_KEY) } catch { /* 기본 흐름대로 */ }
-          restart()
-          setAtHome(false)
-        }}
+        onStart={startOver}
         // 저장한 코스는 분석을 건너뛰고 앱 안쪽 '저장' 탭에서 바로 연다
-        onOpenSaved={() => { setDone(true); setTab('saved'); setAtHome(false) }}
-        // 홈의 추천 코스 — 분석을 건너뛰고 코스 상세를 바로 연다 (닫으면 코스 목록이 남는다)
-        onOpenCourse={(id) => { setDone(true); setTab('search'); setOpenId(id); setAtHome(false) }}
+        onOpenSaved={() => navigate('/saved')}
+        // 홈의 추천 코스 — 분석을 건너뛰고 코스 상세를 바로 연다 (닫으면 홈으로 돌아온다)
+        onOpenCourse={(id) => navigate(`/course/${encodeURIComponent(id)}`)}
       />
     )
   }
-  if (!authed) {
-    return (
-      <AuthScreen auth={auth} setAuth={setAuth} goHome={() => setAtHome(true)} />
-    )
+  if (path === '/login') {
+    // 이미 로그인했으면(게스트로 둘러보기 포함) 로그인하러 오기 전에 가려던 곳으로
+    if (authed) return <Navigate to={afterLoginPath()} replace />
+    return <AuthScreen auth={auth} setAuth={setAuth} goHome={() => navigate('/')} />
   }
-  if (!done && scan === 'ask') {
+  if (AUTH_PATHS.includes(path) && !authed) {
+    rememberAfterLogin(path)
+    return <Navigate to="/login" replace />
+  }
+  if (path === '/start') {
     return (
       <DataSourceScreen
-        sources={sources} setSources={setSources} goHome={() => { restart(); setAtHome(true) }} startScan={startScan} skipScan={skipScan} error={ytError}
+        sources={sources} setSources={setSources} goHome={() => { restart(); navigate('/') }} startScan={startScan} skipScan={skipScan} error={ytError}
         photoCount={photoFiles.length} onPickPhotos={onPickPhotos} onClearPhotos={onClearPhotos}
       />
     )
   }
-  if (!done && scan === 'scanning') {
+  if (path === '/analyze') {
+    // 분석 도중 새로고침하면 이어갈 수 없다 — 결과가 있으면 결과로, 없으면 데이터 고르기로
+    if (!scanning) return <Navigate to={report ? '/result' : '/start'} replace />
     return (
       <ScanningScreen
         sources={scanRef.current.src} yt={scanRef.current.yt} loading={ytLoading} scanN={scanN} photoUrls={photoUrls} ready={scanReady} onResult={() => resultGoRef.current?.()}
         swipes={swipes} onSwipe={(x) => setSwipes((l) => [...l.filter((y) => y.id !== x.id), x])}
-        cancelScan={() => { if (timerRef.current) clearInterval(timerRef.current); scanTokenRef.current++; setScanReady(null); setScan('ask'); setScanN(0) }}
+        cancelScan={() => { stopScan(); navigate('/start', { replace: true }) }}
       />
     )
   }
-  if (!done && scan === 'summary' && report) {
+  if (path === '/result') {
+    if (!report) return <Navigate to="/start" replace />
     return (
       <SummaryScreen
         report={report} taste={taste} setTaste={setTaste} tags={tags} setTags={setTags}
         picks={picks} setPicks={setPicks}
-        intent={intent} setIntent={setIntent} toStart={restart} rescan={rescan}
+        intent={intent} setIntent={setIntent} toStart={startOver} rescan={rescan}
         finish={() => {
           // 혼자·연인이면 인원 조건도 맞춤 (친구·가족·동료는 인원이 제각각이라 그대로)
           const people = taste.companion === 'solo' ? 1 : taste.companion === 'couple' ? 2 : 0
           if (people) setCond((c) => ({ ...c, people }))
           setDone(true)
+          navigate('/courses')
         }}
         hourRange={range} setHourRange={setHourRange}
         budget={cond.budget} setBudget={(budget) => setCond((c) => ({ ...c, budget }))}
       />
     )
   }
+  // 모르는 주소는 홈으로
+  if (!tab && !openId) return <Navigate to="/" replace />
 
   return (
     <div className="pl-app">
       {tab === 'search' && (
         <SearchTab
           cond={cond} setCond={setCond} sheet={sheet} setSheetKey={setSheetKey}
-          built={built} filtered={filtered} taste={effTaste} tags={effTags} restart={restart}
-          openCourse={(id) => setOpenId(id)} ai={ai} generateAi={generateAi}
+          built={built} filtered={filtered} taste={effTaste} tags={effTags} restart={startOver}
+          openCourse={openCourseFrom} ai={ai} generateAi={generateAi}
         />
       )}
       {tab === 'saved' && (
         <SavedTab
           savedBuilt={saved.map((id) => builtAll.find((c) => c.id === id)).filter(Boolean) as BuiltCourse[]}
           people={cond.people}
-          openCourse={(id) => setOpenId(id)}
+          openCourse={openCourseFrom}
           remove={(id) => toggleSave(id)}
-          goSearch={() => setTab('search')}
+          goSearch={() => navigate('/courses')}
         />
       )}
-      <BottomTabs
-        active={tab === 'saved' ? 'saved' : 'course'}
-        savedCount={saved.length}
-        onSelect={(t) => {
-          // '저장'과 '코스'는 이 화면 안에서 오가고, 나머지는 홈의 해당 탭으로
-          if (t === 'saved') return setTab('saved')
-          if (t === 'course') return setTab('search')
-          setHomeTab(t)
-          setAtHome(true)
-        }}
-      />
-      {openCourse && (
+      {tab && (
+        <BottomTabs
+          active={tab === 'saved' ? 'saved' : 'course'}
+          savedCount={saved.length}
+          onSelect={(t) => {
+            // '저장'과 '코스'는 이 화면 안에서 오가고, 나머지는 홈의 해당 탭으로
+            if (t === 'saved') return navigate('/saved')
+            if (t === 'course') return navigate('/courses')
+            navigate(HOME_PATH[t])
+          }}
+        />
+      )}
+      {openCourse ? (
         <CourseModal
           course={openCourse}
           isSaved={saved.indexOf(openCourse.id) > -1}
           booked={booked}
           toggleBook={(key) => setBooked((b) => (b.indexOf(key) > -1 ? b.filter((x) => x !== key) : b.concat([key])))}
           toggleSave={() => toggleSave(openCourse.id)}
-          start={() => setLiveId(openCourse.id)}
+          start={() => navigate(`/course/${encodeURIComponent(openCourse.id)}/live`, { state: location.state })}
           share={() => share(openCourse)}
-          close={() => closeModal()}
+          close={closeModal}
           closing={modalClosing}
         />
+      ) : openId && !tab && (
+        <div style={{ padding: '120px 24px', textAlign: 'center', font: '600 14px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>코스를 불러오고 있어요</div>
       )}
       {liveCourse && (
         <LiveCourse
           course={liveCourse}
           isSaved={saved.indexOf(liveCourse.id) > -1}
           toggleSave={() => toggleSave(liveCourse.id)}
-          onClose={() => setLiveId(null)}
+          onClose={() => back(`/course/${encodeURIComponent(liveCourse.id)}`)}
         />
       )}
       {shareEl}
-        {toastEl}
+      {toastEl}
     </div>
   )
 }
+
 
 /* ── 로그인 / 회원가입 ─────────────────────────────────────── */
 function AuthScreen({ auth, setAuth, goHome }: {
