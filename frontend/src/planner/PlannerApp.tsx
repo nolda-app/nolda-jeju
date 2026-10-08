@@ -4,38 +4,30 @@ import type { HomeTab } from './BottomTabs'
 import SplashScreen from './SplashScreen'
 import ShareSheet from './ShareSheet'
 import LiveCourse from './LiveCourse'
-import type { Swipe } from './tasteType'
-import { stashPhotos, takePhotos } from './photoStash'
 import { loadPlaces } from './geo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { analyzeTaste, deleteSavedCourse, fetchAiCourses, fetchCourse, fetchSavedCourses, putSavedCourse, fetchYoutubeTaste, youtubeAuthorizeUrl } from './api'
-import type { TasteProfile, YoutubeTaste } from './api'
-import { keepReadable, readPhotos } from './photoMeta'
+import { deleteSavedCourse, fetchAiCourses, fetchCourse, fetchSavedCourses, putSavedCourse } from './api'
 import { COND, COURSES, DEFAULT_COND } from './data'
 import type { Course } from './data'
-import { HOUR_DEFAULT, analyzeYoutubeOnly, applyPicks, build, hourBucket, matchCond, reportFromProfile, scanSteps } from './logic'
-import type { Picks, Report, Taste, BuiltCourse, Sources } from './logic'
+import { build, matchCond } from './logic'
+import type { BuiltCourse } from './logic'
 import { store } from '../app/storage'
 import { AuthScreen, LoginErrorScreen } from '../auth/AuthScreen'
 import { useAuth } from '../auth/useAuth'
 import { DataSourceScreen } from '../taste/DataSourceScreen'
 import { ScanningScreen } from '../taste/ScanningScreen'
-import type { ScanResult } from '../taste/ScanningScreen'
 import { SummaryScreen } from '../taste/SummaryScreen'
-import { SCAN_INTAKE_MS, SCAN_STEP_MS } from '../taste/motion'
+import { useTasteScan } from '../taste/useTasteScan'
+import type { TasteSnapshot } from '../taste/useTasteScan'
 import { SearchTab } from '../courses/SearchTab'
 import type { AiState } from '../courses/SearchTab'
 import { SavedTab } from '../courses/SavedTab'
 import { CourseModal } from '../courses/CourseModal'
 import './planner.css'
 
-
 const AI_IDLE: AiState = { status: 'idle', ids: [], error: '' }
 const MODAL_CLOSE_MS = 280 // planner.css pl-sheet-down 길이와 맞춤
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 
 /*
  * 경로 = 화면. 새로고침·뒤로가기·주소 직접 입력 모두 경로만 보고 같은 화면을 그린다.
@@ -49,13 +41,6 @@ const HOME_PATH: Record<Exclude<HomeTab, 'course'>, string> = { home: '/', searc
 const AUTH_PATHS = ['/start', '/analyze', '/result', '/courses', '/saved'] // 로그인해야 들어가는 화면
 const APP_TAB: Record<string, 'search' | 'saved'> = { '/courses': 'search', '/saved': 'saved' }
 
-/** 유튜브 동의에서 돌아왔을 때 이어갈 선택 — 한 번 읽으면 지운다 */
-function readPending() {
-  const p = store.ytPending.get()
-  store.ytPending.set(null)
-  return p
-}
-
 // 소셜 로그인·유튜브 연동·옛 공유 링크(?course=)는 페이지를 새로 열고 '/?...'로 돌아온다 — 처음 한 번만 읽는다
 function readEntry() {
   const q = new URLSearchParams(window.location.search)
@@ -68,15 +53,9 @@ const afterLoginPath = () => {
   return p?.startsWith('/') ? p : '/start'
 }
 
-export interface Session {
-  report: Report | null
-  taste: Taste
-  tags: string[]
-  picks: Picks
-  intent: string | null
-  hourRange: [number, number] | null
+/** 새로고침 대비 세션에 남기는 값 — 분석 결과 + 코스 조건·목록 */
+export interface Session extends TasteSnapshot {
   cond: typeof DEFAULT_COND
-  swipes: Swipe[]
   done: boolean
   aiIds: string[]
   pool: Course[]
@@ -97,22 +76,12 @@ export default function PlannerApp() {
   const homeTab = (Object.keys(HOME_PATH) as (keyof typeof HOME_PATH)[]).find((k) => HOME_PATH[k] === path) || null
 
   const { auth, setAuth, authed, loginError, clearLoginError, restore: restoreAuth, logout: signOut, rename } = useAuth(entry)
-  const [sources, setSources] = useState<Sources>({ youtube: true, photos: false })
-  const [photoFiles, setPhotoFiles] = useState<File[]>([])
-  const [ytError, setYtError] = useState('')
-  const [ytLoading, setYtLoading] = useState(false)
-  // 분석이 돌고 있는지 — 새로고침하면 분석은 이어갈 수 없어 /analyze가 /start로 돌아간다
-  const [scanning, setScanning] = useState(!!entry.yt)
-  const [scanN, setScanN] = useState(0)
-  const [report, setReport] = useState<Report | null>(snap.report ?? null)
-  const [taste, setTaste] = useState<Taste>(snap.taste ?? {})
-  const [tags, setTags] = useState<string[]>(snap.tags ?? [])
-  // 동적 주제에서 고른 답 (주제 key → 고른 옵션 값들)
-  const [picks, setPicks] = useState<Picks>(snap.picks ?? {})
-  const [intent, setIntent] = useState<string | null>(snap.intent ?? null)
-  // 시간대 막대에서 고른 시작·종료 시각 (안 건드렸으면 시간대 구간 기본값)
-  const [hourRange, setHourRangeState] = useState<[number, number] | null>(snap.hourRange ?? null)
   const [cond, setCond] = useState(snap.cond ?? { ...DEFAULT_COND })
+  const scan = useTasteScan({
+    entry, snap, auth, restoreAuth,
+    // 분석에서 나온 인원·예산을 코스 조건에 반영
+    onReport: (a) => setCond((c) => ({ ...c, people: a.party, budget: a.budgetBand })),
+  })
   const [sheetKey, setSheetKey] = useState<string | null>(null)
   // 저장한 코스: 이 기기(localStorage)에 보관하고, 로그인했으면 DB(saved_courses)와도 맞춤
   const [savedInit] = useState<Course[]>(() => store.savedCourses.get() ?? [])
@@ -127,12 +96,6 @@ export default function PlannerApp() {
   const [booked, setBooked] = useState<string[]>([])
   // 앱 실행 직후 로고 — 홈으로 처음 들어왔을 때만 (다른 경로·리디렉션 복귀·새로고침은 건너뜀)
   const [splash, setSplash] = useState(() => !window.location.search && window.location.pathname === '/' && !store.splashed.get())
-  // 연동해 둔 유튜브 집계 결과. 있으면 분석을 다시 해도 구글 동의를 또 받지 않는다
-  const [ytId, setYtIdState] = useState<string | null>(() => store.ytId.get())
-  const setYtId = (id: string | null) => {
-    setYtIdState(id)
-    store.ytId.set(id)
-  }
   // 분석을 끝냈거나 건너뛰어 코스 화면까지 간 적이 있는지 — 홈 '코스' 탭이 분석부터일지 목록일지 정한다
   const [done, setDone] = useState(!!snap.done)
   const [ai, setAi] = useState<AiState>(() => (snap.aiIds?.length ? { status: 'done', ids: snap.aiIds, error: '' } : AI_IDLE))
@@ -175,12 +138,6 @@ export default function PlannerApp() {
   // 코스 화면까지 오면 분석을 끝낸 것으로 친다 (주소로 바로 들어온 경우 포함)
   useEffect(() => { if (tab && authed) setDone(true) }, [tab, authed])
 
-  const timerRef = useRef<number | null>(null)
-  const t0Ref = useRef(0)
-
-  const photoUrls = useMemo(() => photoFiles.map((f) => URL.createObjectURL(f)), [photoFiles])
-  useEffect(() => () => { photoUrls.forEach((u) => URL.revokeObjectURL(u)) }, [photoUrls])
-
   // 저장한 코스 목록 — 이 기기에 기록하고 홈 '저장' 탭에도 보여준다
   const savedCourses = useMemo(
     () => saved.map((id) => aiPool[id] || COURSES.find((c) => c.id === id)).filter(Boolean) as Course[],
@@ -194,7 +151,7 @@ export default function PlannerApp() {
   useEffect(() => {
     const aiIds = ai.status === 'done' ? ai.ids : []
     const s: Session = {
-      report, taste, tags, picks, intent, hourRange, cond, swipes, done,
+      ...scan.snapshot, cond, done,
       aiIds, pool: aiIds.map((id) => aiPool[id]).filter(Boolean),
     }
     store.session.set(s)
@@ -216,199 +173,13 @@ export default function PlannerApp() {
   useEffect(() => {
     loadPlaces().then(() => setPlacesReady(true)).catch((e: Error) => console.error('[places]', e.message))
   }, [])
-  // 브라우저가 못 읽는 형식(HEIC 등)은 여기서 걸러서, 분석 단계에서 조용히 사라지지 않게 한다
-  const onPickPhotos = (files: File[]) => {
-    setYtError('')
-    void keepReadable(files).then(({ ok, bad }) => {
-      if (bad.length) setYtError(`${bad.length}장은 이 브라우저가 열 수 없는 형식이라 제외했어요 (아이폰 HEIC는 JPG로 저장해 주세요)`)
-      if (!ok.length) return setSources((st) => ({ ...st, photos: false }))
-      setPhotoFiles(ok)
-      setSources((st) => ({ ...st, photos: true }))
-    })
-  }
-  const onClearPhotos = () => { setPhotoFiles([]); setSources((st) => ({ ...st, photos: false })) }
-
-  // 타이머 콜백이 옛 state를 보지 않도록 이번 분석에 쓰는 값은 ref로 넘김
-  const scanRef = useRef<{ src: Sources; yt: YoutubeTaste | null }>({ src: sources, yt: null })
-  // 백엔드 LLM 분석 — 타일 애니메이션과 동시에 돌리고, 둘 다 끝나면 요약 화면으로
-  const profileRef = useRef<Promise<TasteProfile | null> | null>(null)
-  const finishedRef = useRef(false)
-  // 분석을 취소·재시작하면 값이 바뀜 — 늦게 끝난 이전 분석이 화면을 넘기지 못하게
-  const scanTokenRef = useRef(0)
-  // 분석이 끝나면 태그·취향 값 (분석 화면이 취향 유형을 발표하는 데 씀)
-  const [scanReady, setScanReady] = useState<ScanResult | null>(null)
-  // 분석 중 미니 게임에서 스와이프한 장소 — 코스 추천에 '마음에 든/별로인 장소'로 넘김
-  const [swipes, setSwipes] = useState<Swipe[]>(snap.swipes ?? [])
-  const resultGoRef = useRef<(() => void) | null>(null) // '결과 보기'를 누르면 요약 화면으로
-
-  const finishScan = async () => {
-    if (finishedRef.current) return
-    finishedRef.current = true
-    if (timerRef.current) clearInterval(timerRef.current)
-    const token = scanTokenRef.current
-    const still = () => token === scanTokenRef.current
-    const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    // 분석이 빨리 끝나도 '분석 중' 화면은 잠깐 보여줌
-    const [prof] = await Promise.all([profileRef.current, motion ? sleep(SCAN_INTAKE_MS) : null])
-    if (!still()) return
-    // LLM 분석이 실패하면 유튜브 키워드 규칙만으로 (사진은 흉내 내지 않는다 — 가짜 결과가 되므로).
-    // 연동은 됐어도 기록이 적어 키워드가 하나도 안 잡혔으면 전부 기본값이라 '유튜브로 맞췄다'고 하지 않는다
-    const h = scanRef.current.yt?.hints
-    const fromYt = !!h && !!(h.mood || h.spend || h.pace || h.tags.length)
-    const a = prof
-      ? reportFromProfile(prof)
-      : analyzeYoutubeOnly(scanRef.current.yt, fromYt
-          ? '취향 분석이 잠시 안 돼서 유튜브 기록만으로 대략 맞췄어요'
-          : '취향 분석이 잠시 안 돼서 기본 취향으로 보여드려요. 아래에서 직접 고칠 수 있어요')
-    setScanReady({ tags: a.tags, taste: a.taste })
-    await new Promise<void>((r) => { resultGoRef.current = r })
-    resultGoRef.current = null
-    if (!still()) return
-    setScanReady(null)
-    setReport(a)
-    setTaste(a.taste)
-    setTags(a.tags)
-    setPicks({})
-    setCond((c) => ({ ...c, people: a.party, budget: a.budgetBand }))
-    setScanning(false)
-    navigate('/result', { replace: true }) // 뒤로가기하면 분석 중 화면이 아니라 데이터 고르기로
-  }
-
-  /** 사진을 읽어(EXIF·축소) 유튜브 집계와 함께 백엔드로 — 실패하면 null이라 폴백으로 넘어간다 */
-  const startProfile = (src: Sources, ytId: string | null, files: File[]) => {
-    profileRef.current = (src.photos && files.length ? readPhotos(files) : Promise.resolve([]))
-      .then((photos) => (photos.length || ytId ? analyzeTaste({ yt_id: ytId, photos }) : null))
-      .catch((e: Error) => { console.error('[taste]', e.message); setYtError(e.message); return null })
-  }
-
-  const runScan = (src: Sources, ytData: YoutubeTaste | null, photoCount = photoFiles.length) => {
-    scanRef.current = { src, yt: ytData }
-    finishedRef.current = false
-    scanTokenRef.current++
-    setScanReady(null)
-    setSwipes([])
-    setScanning(true)
-    setScanN(0)
-    if (timerRef.current) clearInterval(timerRef.current)
-    const total = scanSteps(src, ytData, photoCount)
-    if (!total) { void finishScan(); return }
-    t0Ref.current = Date.now()
-    timerRef.current = window.setInterval(() => {
-      setScanN((n) => {
-        const next = Math.max(n + 1, Math.min(total, Math.floor((Date.now() - t0Ref.current) / SCAN_STEP_MS)))
-        if (next >= total) {
-          if (timerRef.current) clearInterval(timerRef.current)
-          void finishScan()
-        }
-        return next
-      })
-    }, SCAN_STEP_MS)
-  }
-
-  // 분석을 멈추고 데이터 고르기로 (늦게 끝난 분석이 화면을 넘기지 못하게 토큰도 바꾼다)
-  const stopScan = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    scanTokenRef.current++
-    setScanReady(null); setScanning(false); setScanN(0)
-  }
-
-  const startScan = () => {
-    if (!sources.youtube && !sources.photos) return
-    setYtError('')
-    if (!sources.youtube) {
-      startProfile(sources, null, photoFiles)
-      runScan(sources, null)
-      return navigate('/analyze')
-    }
-    // 전에 연동해 둔 결과가 있으면 구글을 다시 거치지 않는다
-    if (ytId) {
-      setScanning(true)
-      setYtLoading(true)
-      navigate('/analyze')
-      fetchYoutubeTaste(ytId)
-        .then((data) => { startProfile(sources, ytId, photoFiles); runScan(sources, data, photoFiles.length) })
-        .catch(() => { setYtId(null); stopScan(); navigate('/start', { replace: true }); setYtError('유튜브 연동이 만료됐어요. 다시 연결해 주세요') })
-        .finally(() => setYtLoading(false))
-      return
-    }
-    // 처음이면 구글 로그인 페이지로 이동 → 백엔드가 집계 후 /?yt=<id>로 돌려보냄
-    try {
-      const url = youtubeAuthorizeUrl()
-      store.ytPending.set({ auth: { ...auth, pw: '' }, sources }) // 저장 불가면 돌아와서 로그인만 다시
-      // 고른 사진은 페이지 이동 전에 기기 안(IndexedDB)에 보관했다가 돌아와서 복원
-      void (sources.photos ? stashPhotos(photoFiles) : Promise.resolve()).then(() => { window.location.href = url })
-    } catch (e) {
-      setYtError((e as Error).message)
-    }
-  }
-
-  // 구글 로그인에서 돌아왔을 때: 로그인·선택 복원 → 집계 결과 받아서 분석 시작.
-  // StrictMode가 effect를 두 번 돌려도 한 번만 (readPending이 저장값을 지우므로)
-  const ytHandled = useRef(false)
-  useEffect(() => {
-    const { yt: id, ytError: err } = entry
-    if ((!id && !err) || ytHandled.current) return
-    ytHandled.current = true
-    const pending = readPending()
-    const src = pending?.sources || { youtube: true, photos: false }
-    if (pending) { restoreAuth(pending.auth); setSources(src) }
-    if (err) return setYtError(err === 'access_denied' ? '유튜브 연결을 취소했어요' : '유튜브 연결에 실패했어요')
-    setYtId(id!)
-    setYtLoading(true)
-    Promise.all([fetchYoutubeTaste(id!), src.photos ? takePhotos() : Promise.resolve([] as File[])])
-      .then(([data, files]) => {
-        const s = { ...src, photos: src.photos && files.length > 0 } // 사진 복원에 실패하면 유튜브만으로
-        setPhotoFiles(files); setSources(s)
-        startProfile(s, id!, files)
-        runScan(s, data, files.length)
-      })
-      .catch((e: Error) => { stopScan(); navigate('/start', { replace: true }); setYtError(e.message) })
-      .finally(() => setYtLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState === 'visible' && scanning && !ytLoading) void finishScan()
-    }
-    document.addEventListener('visibilitychange', onVis)
-    return () => document.removeEventListener('visibilitychange', onVis)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanning, ytLoading])
-
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
-
-  const range: [number, number] = hourRange ?? HOUR_DEFAULT[taste.hour || 'noon'] ?? [12, 15]
-  const setHourRange = (r: [number, number]) => {
-    setHourRangeState(r)
-    setTaste((st) => ({ ...st, hour: hourBucket(r[0]) }))
-  }
-
-  // 동적 주제에서 고른 답 → 코스 점수·프롬프트에 쓸 값 (고른 게 없으면 분석값 그대로)
-  const derived = useMemo(() => applyPicks(report?.topics || [], picks, tags), [report, picks, tags])
-  // useMemo 필수 — 매 렌더 새 객체를 만들면 builtAll이 계속 재계산돼 코스 시작 지도가 다시 그려진다
-  const effTaste: Taste = useMemo(
-    () => ({ ...taste, mood: derived.mood ?? taste.mood, spend: derived.spend ?? taste.spend }),
-    [taste, derived.mood, derived.spend],
-  )
-  const effTags = derived.tags
-  const swipePicked = useMemo(() => {
-    const liked = swipes.filter((x) => x.liked)
-    const nope = swipes.filter((x) => !x.liked)
-    const label = (x: Swipe) => `${x.name}(${x.kind})`
-    return [
-      ...(liked.length ? [{ name: '분석 중 마음에 든 장소', labels: liked.map(label), hint: '이 장소들과 종류·분위기가 비슷한 곳을 우선한다' }] : []),
-      ...(nope.length ? [{ name: '분석 중 별로라고 한 장소', labels: nope.map(label), hint: '이 장소들과 비슷한 곳은 되도록 피한다' }] : []),
-    ]
-  }, [swipes])
-
   const generateAi = () => {
     aiAbort.current?.abort()
     const ctrl = new AbortController()
     aiAbort.current = ctrl
     setAi((s) => ({ ...s, status: 'loading', error: '' }))
     fetchAiCourses(
-      { taste: effTaste, tags: effTags, intent, picked: [...derived.picked, ...swipePicked], cond, time_window: { start: range[0], end: range[1] } },
+      { taste: scan.effTaste, tags: scan.effTags, intent: scan.intent, picked: scan.picked, cond, time_window: { start: scan.range[0], end: scan.range[1] } },
       ctrl.signal,
     )
       .then((list) => {
@@ -429,23 +200,20 @@ export default function PlannerApp() {
   useEffect(() => () => aiAbort.current?.abort(), [])
 
   const skipScan = () => {
-    setTaste({ mood: 'calm', crowd: 'mid', hour: 'noon', spend: 'cafe', pace: 'mid' })
-    setTags([]); setDone(true)
+    scan.skip(); setDone(true)
     navigate('/courses')
   }
-  const rescan = () => { setScanN(0); setReport(null); navigate('/start', { replace: true }) }
   // 분석을 처음부터 다시 — 로그인은 건드리지 않는다. 화면 이동은 부르는 쪽이 정한다
   const restart = () => {
-    stopScan()
-    setReport(null); setIntent(null); setTaste({}); setTags([]); setPicks({}); setSwipes([]); setDone(false); setHourRangeState(null)
-    setCond({ ...DEFAULT_COND }); setSheetKey(null); resetAi(); setYtError('')
+    scan.reset()
+    setDone(false); setCond({ ...DEFAULT_COND }); setSheetKey(null); resetAi()
   }
   const startOver = () => { restart(); navigate('/start') }
 
   // 로그아웃 — 분석 상태를 되돌리고 토큰·유튜브 연동까지 끊는다. 마이페이지에서만 부른다
   const logout = () => {
     restart()
-    setYtId(null) // 로그아웃하면 유튜브 연동도 함께 끊는다
+    scan.disconnectYoutube() // 로그아웃하면 유튜브 연동도 함께 끊는다
     signOut()
   }
 
@@ -458,8 +226,8 @@ export default function PlannerApp() {
 
   // 받은 AI 코스 전체 + 고정 코스 (저장 탭·상세 열기용 + AI 실패 시 fallback)
   const builtAll: BuiltCourse[] = useMemo(
-    () => [...Object.values(aiPool), ...COURSES].map((c) => build(c, { taste: effTaste, tags: effTags, intent, people: cond.people, booked })),
-    [aiPool, effTaste, effTags, intent, cond.people, booked],
+    () => [...Object.values(aiPool), ...COURSES].map((c) => build(c, { taste: scan.effTaste, tags: scan.effTags, intent: scan.intent, people: cond.people, booked })),
+    [aiPool, scan.effTaste, scan.effTags, scan.intent, cond.people, booked],
   )
   const fixedIds = useMemo(() => new Set(COURSES.map((c) => c.id)), [])
   // 검색 목록: 이번에 만든 AI 코스 (AI가 실패했으면 화면이 완전히 비어 보이지 않게 고정 코스로 대체)
@@ -507,7 +275,6 @@ export default function PlannerApp() {
       toast={showToast}
     />
   )
-
 
   const toastEl = toast && <div className="pl-toast" role="status">{toast}</div>
   const sheet = COND.find((c) => c.key === sheetKey) || null
@@ -562,29 +329,30 @@ export default function PlannerApp() {
   if (path === '/start') {
     return (
       <DataSourceScreen
-        sources={sources} setSources={setSources} goHome={() => { restart(); navigate('/') }} startScan={startScan} skipScan={skipScan} error={ytError}
-        photoCount={photoFiles.length} onPickPhotos={onPickPhotos} onClearPhotos={onClearPhotos}
+        sources={scan.sources} setSources={scan.setSources} goHome={() => { restart(); navigate('/') }} startScan={scan.startScan} skipScan={skipScan} error={scan.ytError}
+        photoCount={scan.photoCount} onPickPhotos={scan.onPickPhotos} onClearPhotos={scan.onClearPhotos}
       />
     )
   }
   if (path === '/analyze') {
     // 분석 도중 새로고침하면 이어갈 수 없다 — 결과가 있으면 결과로, 없으면 데이터 고르기로
-    if (!scanning) return <Navigate to={report ? '/result' : '/start'} replace />
+    if (!scan.scanning) return <Navigate to={scan.report ? '/result' : '/start'} replace />
     return (
       <ScanningScreen
-        sources={scanRef.current.src} yt={scanRef.current.yt} loading={ytLoading} scanN={scanN} photoUrls={photoUrls} ready={scanReady} onResult={() => resultGoRef.current?.()}
-        swipes={swipes} onSwipe={(x) => setSwipes((l) => [...l.filter((y) => y.id !== x.id), x])}
-        cancelScan={() => { stopScan(); navigate('/start', { replace: true }) }}
+        sources={scan.scanInput.src} yt={scan.scanInput.yt} loading={scan.ytLoading} scanN={scan.scanN} photoUrls={scan.photoUrls} ready={scan.scanReady} onResult={scan.showResult}
+        swipes={scan.swipes} onSwipe={scan.onSwipe}
+        cancelScan={scan.cancelScan}
       />
     )
   }
   if (path === '/result') {
+    const { report, taste } = scan
     if (!report) return <Navigate to="/start" replace />
     return (
       <SummaryScreen
-        report={report} taste={taste} setTaste={setTaste} tags={tags} setTags={setTags}
-        picks={picks} setPicks={setPicks}
-        intent={intent} setIntent={setIntent} toStart={startOver} rescan={rescan}
+        report={report} taste={taste} setTaste={scan.setTaste} tags={scan.tags} setTags={scan.setTags}
+        picks={scan.picks} setPicks={scan.setPicks}
+        intent={scan.intent} setIntent={scan.setIntent} toStart={startOver} rescan={scan.rescan}
         finish={() => {
           // 혼자·연인이면 인원 조건도 맞춤 (친구·가족·동료는 인원이 제각각이라 그대로)
           const people = taste.companion === 'solo' ? 1 : taste.companion === 'couple' ? 2 : 0
@@ -592,7 +360,7 @@ export default function PlannerApp() {
           setDone(true)
           navigate('/courses')
         }}
-        hourRange={range} setHourRange={setHourRange}
+        hourRange={scan.range} setHourRange={scan.setHourRange}
         budget={cond.budget} setBudget={(budget) => setCond((c) => ({ ...c, budget }))}
       />
     )
@@ -605,7 +373,7 @@ export default function PlannerApp() {
       {tab === 'search' && (
         <SearchTab
           cond={cond} setCond={setCond} sheet={sheet} setSheetKey={setSheetKey}
-          built={built} filtered={filtered} taste={effTaste} tags={effTags} restart={startOver}
+          built={built} filtered={filtered} taste={scan.effTaste} tags={scan.effTags} restart={startOver}
           openCourse={openCourseFrom} ai={ai} generateAi={generateAi}
         />
       )}
