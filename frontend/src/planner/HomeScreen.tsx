@@ -119,7 +119,14 @@ function Hero() {
   )
 }
 
-/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스 중 날짜마다 다른 3개를 돌려 보여준다 */
+/** 가로 넘김 목록에서 카드 한 장만큼의 거리 (카드 사이 간격 포함) */
+const slideStep = (el: HTMLElement, count: number) => (el.scrollWidth - el.clientWidth) / Math.max(count - 1, 1) || 1
+const slideTo = (el: HTMLElement | null, n: number, count: number) => {
+  el?.scrollTo({ left: n * slideStep(el, count), behavior: 'smooth' })
+}
+
+/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스 중 날짜마다 다른 3개를 보여준다.
+ *  좌우로 밀어 넘기고(가로 스크롤 스냅), 손대기 전까지는 저절로 넘어간다. 점 표시는 스크롤 위치를 따른다 */
 function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: string) => void; onAll: () => void }) {
   const list = useMemo(() => {
     const from = new Date().getDate() % COURSES.length
@@ -127,49 +134,102 @@ function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: str
   }, [])
   const [i, setI] = useState(0)
   const [held, setHeld] = useState(false)
+  const trackRef = useRef<HTMLDivElement>(null)
 
+  const go = (n: number) => slideTo(trackRef.current, n, list.length)
+  // 마우스로 끌어 넘기기 — 터치는 브라우저가 가로 스크롤해 주지만 마우스 드래그는 직접 옮겨야 한다.
+  // 끌다 놓으면 가까운 카드로 맞추고, 조금이라도 끌었으면 놓을 때의 클릭(코스 열기)은 무시한다
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
+  const dragged = useRef(false)
+
+  // 손대기 전까지 자동으로 다음 코스로 (마지막 다음은 처음)
   useEffect(() => {
     if (held) return
-    const t = setInterval(() => setI((n) => (n + 1) % list.length), REC_MS)
+    const t = setInterval(() => slideTo(trackRef.current, (i + 1) % list.length, list.length), REC_MS)
     return () => clearInterval(t)
-  }, [held, list.length])
-
-  const c = list[i]
-  const { mins, cost, first } = courseSummary(c)
+  }, [held, i, list.length])
 
   return (
-    <section className="pl-rec pl-rv" onPointerDown={() => setHeld(true)}>
+    <section className="pl-rec pl-rv">
       <div className="pl-rec-head">
         <h2>오늘의 추천 코스</h2>
         <button type="button" onClick={onAll}>전체보기</button>
       </div>
 
-      <div className="pl-rec-card" onClick={() => onOpen(c.id)} role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id) }}>
-        <div className="pl-rec-img">
-          {ready ? <KindThumb kind={c.items[0]?.k || ''} size={104} pid={first} /> : <div className="pl-rec-imgskel" />}
-        </div>
-        <div className="pl-rec-body">
-          <span className="pl-rec-badge">{c.area} · {c.items.length}곳</span>
-          <div className="pl-rec-t">{c.title}</div>
-          {/* 어떤 곳을 어떤 순서로 도는지 — 장소 이름을 이어서 보여줘야 '코스'로 읽힌다 */}
-          <ol className="pl-rec-flow">
-            {c.items.map((it, n) => (
-              <li key={n} className="pl-rec-stop">
-                <KindThumb kind={it.k} size={17} />
-                {it.n}
-              </li>
-            ))}
-          </ol>
-          <div className="pl-rec-meta">예상 소요시간 {durLabel(mins)} · 예상 비용 {won(cost)}</div>
-          <div className="pl-rec-go">코스 보기 <span aria-hidden>›</span></div>
-        </div>
+      <div
+        ref={trackRef}
+        className="pl-rec-track"
+        onPointerDown={(e) => {
+          setHeld(true)
+          dragged.current = false
+          if (e.pointerType !== 'mouse' || e.button !== 0) return
+          drag.current = { x: e.clientX, left: e.currentTarget.scrollLeft, moved: false }
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current
+          if (!d) return
+          const dx = e.clientX - d.x
+          if (!d.moved && Math.abs(dx) < 5) return
+          if (!d.moved) {
+            d.moved = true
+            e.currentTarget.setPointerCapture(e.pointerId)
+            e.currentTarget.classList.add('is-drag') // 끄는 동안은 스냅을 꺼야 손을 따라 움직인다
+          }
+          e.currentTarget.scrollLeft = d.left - dx
+        }}
+        onPointerUp={(e) => {
+          const d = drag.current
+          drag.current = null
+          if (!d?.moved) return
+          dragged.current = true
+          const el = e.currentTarget
+          // 조금만 밀어도 넘어가게 — 끈 방향으로 한 장. 스냅을 다시 켜기 전에 재야 한다 (켜는 순간 위치가 튕긴다)
+          const from = Math.round(d.left / slideStep(el, list.length))
+          const moved = el.scrollLeft - d.left // 왼쪽으로 끌면 +, 오른쪽으로 끌면 −
+          el.classList.remove('is-drag')
+          go(Math.min(Math.max(from + (Math.abs(moved) > 40 ? Math.sign(moved) : 0), 0), list.length - 1))
+        }}
+        onPointerCancel={(e) => { drag.current = null; e.currentTarget.classList.remove('is-drag') }}
+        onClickCapture={(e) => { if (dragged.current) { e.stopPropagation(); dragged.current = false } }}
+        onDragStart={(e) => e.preventDefault()} // 사진을 끌어 옮기는 브라우저 기본 동작 막기
+        onWheel={() => setHeld(true)}
+        onScroll={(e) => {
+          const el = e.currentTarget
+          setI(Math.round(el.scrollLeft / slideStep(el, list.length)))
+        }}
+      >
+        {list.map((c) => {
+          const { mins, cost, first } = courseSummary(c)
+          return (
+            <div key={c.id} className="pl-rec-card" onClick={() => onOpen(c.id)} role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id) }}>
+              <div className="pl-rec-img">
+                {ready ? <KindThumb kind={c.items[0]?.k || ''} size={104} pid={first} /> : <div className="pl-rec-imgskel" />}
+              </div>
+              <div className="pl-rec-body">
+                <span className="pl-rec-badge">{c.area} · {c.items.length}곳</span>
+                <div className="pl-rec-t">{c.title}</div>
+                {/* 어떤 곳을 어떤 순서로 도는지 — 장소 이름을 이어서 보여줘야 '코스'로 읽힌다 */}
+                <ol className="pl-rec-flow">
+                  {c.items.map((it, n) => (
+                    <li key={n} className="pl-rec-stop">
+                      <KindThumb kind={it.k} size={17} />
+                      {it.n}
+                    </li>
+                  ))}
+                </ol>
+                <div className="pl-rec-meta">예상 소요시간 {durLabel(mins)} · 예상 비용 {won(cost)}</div>
+                <div className="pl-rec-go">코스 보기 <span aria-hidden>›</span></div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="pl-rec-dots">
         {list.map((x, n) => (
           <button key={x.id} type="button" className={n === i ? 'on' : ''}
-            onClick={() => { setHeld(true); setI(n) }} aria-label={`${n + 1}번째 추천 코스`} />
+            onClick={() => { setHeld(true); go(n) }} aria-label={`${n + 1}번째 추천 코스`} />
         ))}
       </div>
     </section>
@@ -286,7 +346,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
       )}
 
       <div className="pl-scroll" ref={scrollRef} style={{ padding: home ? '0 0 168px' : '0 0 104px' }}>
-        {failed && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
+        {failed && !home && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
 
         {home && (
           <>
@@ -294,6 +354,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
             <Hero />
 
             <div className="pl-homesheet">
+            {failed && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
             <RecCourses ready={ready} onOpen={onOpenCourse} onAll={() => setTab('course')} />
 
             <div className="pl-home-pad">

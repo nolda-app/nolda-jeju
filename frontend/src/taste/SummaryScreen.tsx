@@ -48,25 +48,25 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
     <div className="pl-screen">
       <div className="pl-scroll" style={{ padding: '22px 22px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span style={{ font: '400 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.45)' }}>{scanMeta}</span>
+          <span style={{ font: '400 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>{scanMeta}</span>
           <div className="pl-pillbtn" onClick={toStart}>처음으로</div>
         </div>
-        <div className="pl-h1" style={{ marginTop: 9, fontSize: 26 }}>이런 취향이 보여요</div>
+        <div className="pl-h1" style={{ marginTop: 9 }}>이런 취향이 보여요</div>
         <div className="pl-sub" style={{ marginTop: 9 }}>다르면 눌러서 바꿔주세요. 바꾼 값으로 다시 추천해요.</div>
         {report.notice && <div className="pl-notice" style={{ marginTop: 12 }}>{report.notice}</div>}
 
         {report.highlights.length > 0 && (
           <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {report.highlights.map((h) => <span key={h} className="pl-tag-mini" style={{ background: '#E4F4EC', color: '#0C5A42' }}>{h}</span>)}
+            {report.highlights.map((h) => <span key={h} className="pl-tag-mini" style={{ background: 'var(--green-soft)', color: '#0C5A42' }}>{h}</span>)}
           </div>
         )}
 
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {traitCards.map((t) => (
             <div key={t.key} className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>{t.name}</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 Pretendard,sans-serif', color: '#00845A' }}>{t.evidence}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">{t.name}</span>
+                <span className="pl-trait-ev">{t.evidence}</span>
               </div>
               {t.key === 'hour' ? (
                 <HourRange range={hourRange} onChange={setHourRange} />
@@ -80,14 +80,14 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
             </div>
           ))}
           <div className="pl-traitcard">
-            <span style={{ font: '600 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>1인 예산</span>
+            <div className="pl-trait-head"><span className="pl-trait-name">1인 예산</span></div>
             <BudgetSlider value={budget} onChange={setBudget} />
           </div>
           {!dynamic && (
             <div className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>이런 것들이 자주 보였어요</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 Pretendard,sans-serif', color: '#00845A' }}>{report.evidence.tags}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">이런 것들이 자주 보였어요</span>
+                <span className="pl-trait-ev">{report.evidence.tags}</span>
               </div>
               <div style={{ marginTop: 11, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {tagChips.map((c) => (
@@ -99,9 +99,9 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
           {/* 이번 분석에서 새로 만든 주제 — 기록이 달라지면 주제와 선택지도 달라진다 */}
           {report.topics.map((t) => (
             <div key={t.key} className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>{t.name}</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 Pretendard,sans-serif', color: '#00845A' }}>{t.evidence}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">{t.name}</span>
+                <span className="pl-trait-ev">{t.evidence}</span>
               </div>
               <div style={{ marginTop: 11, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {t.opts.map((o) => (
@@ -114,8 +114,8 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
 
         {!dynamic && (
         <div className="pl-intentbox">
-          <div style={{ font: '800 15.5px/1.35 Pretendard,sans-serif', color: '#141821' }}>오늘은 어떤 걸 해볼까요?</div>
-          <div style={{ marginTop: 6, font: '400 12.5px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>취향 분석은 예전 기록 기준이에요.<br />오늘 기분에 맞는 걸 고르면 그 코스를 위로 올려드려요.</div>
+          <div style={{ font: '800 15.5px/1.35 var(--font)', color: 'var(--ink)' }}>오늘은 어떤 걸 해볼까요?</div>
+          <div style={{ marginTop: 6, font: '400 12.5px/1.6 var(--font)', color: 'var(--ink-45)' }}>취향 분석은 예전 기록 기준이에요.<br />오늘 기분에 맞는 걸 고르면 그 코스를 위로 올려드려요.</div>
           <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
             {intentChips.map((c) => (
               <Chip key={String(c.v)} label={c.l} on={(intent || null) === c.v} onClick={() => setIntent(c.v)} />
@@ -146,8 +146,8 @@ function HourRange({ range: [start, end], onChange }: { range: [number, number];
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ font: '800 17px/1.2 Pretendard,sans-serif', letterSpacing: '-.02em', color: '#141821' }}>{hourText(start)} ~ {hourText(end)}</span>
-        <span style={{ font: '600 12.5px/1 Pretendard,sans-serif', color: GREEN }}>{end - start}시간 · {labelOf(Q[2].opts, bucket)}</span>
+        <span style={{ font: '800 17px/1.2 var(--font)', letterSpacing: '-.02em', color: 'var(--ink)' }}>{hourText(start)} ~ {hourText(end)}</span>
+        <span style={{ font: '600 12.5px/1 var(--font)', color: GREEN }}>{end - start}시간 · {labelOf(Q[2].opts, bucket)}</span>
       </div>
       <div className="pl-range">
         <div className="pl-range-track" />
@@ -187,8 +187,8 @@ function BudgetSlider({ value, onChange }: { value: number; onChange: (v: number
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ font: '800 17px/1.2 Pretendard,sans-serif', letterSpacing: '-.02em', color: '#141821' }}>{text}</span>
-        <span style={{ font: '600 12.5px/1 Pretendard,sans-serif', color: GREEN }}>{unlimited ? '끝까지 밀면 제한 없음' : '코스 전체 1인 기준'}</span>
+        <span style={{ font: '800 17px/1.2 var(--font)', letterSpacing: '-.02em', color: 'var(--ink)' }}>{text}</span>
+        <span style={{ font: '600 12.5px/1 var(--font)', color: GREEN }}>{unlimited ? '끝까지 밀면 제한 없음' : '코스 전체 1인 기준'}</span>
       </div>
       <div className="pl-range">
         <div className="pl-range-track" />
@@ -218,7 +218,7 @@ function BudgetSlider({ value, onChange }: { value: number; onChange: (v: number
 
 function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
-    <div className="pl-chip" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'rgba(20,24,33,.12)', color: on ? '#fff' : '#2c3444' }} onClick={onClick}>
+    <div className="pl-chip" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }} onClick={onClick}>
       {label}
     </div>
   )
