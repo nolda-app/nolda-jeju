@@ -824,6 +824,28 @@
   cursor: pointer;
 }
 
+/* 추천 코스 가로 넘김 — 한 장씩 딱 맞게 멈춘다 (카드 그림자가 잘리지 않게 위아래 여백) */
+.pl-rec-track {
+  display: flex;
+  gap: 12px;
+  margin: -4px -14px;
+  padding: 4px 14px 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 14px;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.pl-rec-track::-webkit-scrollbar { display: none; }
+
+.pl-rec-track > .pl-rec-card {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
 .pl-rec-card {
   display: flex;
   gap: 13px;

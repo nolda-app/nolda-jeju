@@ -43,6 +43,18 @@ body {
   margin: 0;
 }
 
+/* 데스크톱처럼 화면이 앱 폭(430px)보다 넓으면 바깥을 한 톤 어둡게 하고 앱 기둥에 그림자 — 모바일 화면 경계가 보이게 */
+@media (min-width: 431px) {
+  :root {
+    background: #ECE9E1;
+  }
+
+  #root > .pl-app,
+  #root > .pl-screen {
+    box-shadow: 0 0 0 1px var(--ink-06), 0 12px 48px rgba(20, 24, 33, .12);
+  }
+}
+
 #root {
   min-height: 100svh;
   text-align: center; /* 화면들이 가운데 정렬을 물려받는 걸 전제로 만들어져 있다 (왼쪽 정렬은 각 화면이 직접 지정) */

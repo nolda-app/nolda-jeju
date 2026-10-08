@@ -119,7 +119,14 @@ function Hero() {
   )
 }
 
-/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스 중 날짜마다 다른 3개를 돌려 보여준다 */
+/** 가로 넘김 목록에서 카드 한 장만큼의 거리 (카드 사이 간격 포함) */
+const slideStep = (el: HTMLElement, count: number) => (el.scrollWidth - el.clientWidth) / Math.max(count - 1, 1) || 1
+const slideTo = (el: HTMLElement | null, n: number, count: number) => {
+  el?.scrollTo({ left: n * slideStep(el, count), behavior: 'smooth' })
+}
+
+/** 오늘의 추천 코스 — 아직 취향 분석 전이라 미리 만들어 둔 코스 중 날짜마다 다른 3개를 보여준다.
+ *  좌우로 밀어 넘기고(가로 스크롤 스냅), 손대기 전까지는 저절로 넘어간다. 점 표시는 스크롤 위치를 따른다 */
 function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: string) => void; onAll: () => void }) {
   const list = useMemo(() => {
     const from = new Date().getDate() % COURSES.length
@@ -127,49 +134,66 @@ function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: str
   }, [])
   const [i, setI] = useState(0)
   const [held, setHeld] = useState(false)
+  const trackRef = useRef<HTMLDivElement>(null)
 
+  const go = (n: number) => slideTo(trackRef.current, n, list.length)
+
+  // 손대기 전까지 자동으로 다음 코스로 (마지막 다음은 처음)
   useEffect(() => {
     if (held) return
-    const t = setInterval(() => setI((n) => (n + 1) % list.length), REC_MS)
+    const t = setInterval(() => slideTo(trackRef.current, (i + 1) % list.length, list.length), REC_MS)
     return () => clearInterval(t)
-  }, [held, list.length])
-
-  const c = list[i]
-  const { mins, cost, first } = courseSummary(c)
+  }, [held, i, list.length])
 
   return (
-    <section className="pl-rec pl-rv" onPointerDown={() => setHeld(true)}>
+    <section className="pl-rec pl-rv">
       <div className="pl-rec-head">
         <h2>오늘의 추천 코스</h2>
         <button type="button" onClick={onAll}>전체보기</button>
       </div>
 
-      <div className="pl-rec-card" onClick={() => onOpen(c.id)} role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id) }}>
-        <div className="pl-rec-img">
-          {ready ? <KindThumb kind={c.items[0]?.k || ''} size={104} pid={first} /> : <div className="pl-rec-imgskel" />}
-        </div>
-        <div className="pl-rec-body">
-          <span className="pl-rec-badge">{c.area} · {c.items.length}곳</span>
-          <div className="pl-rec-t">{c.title}</div>
-          {/* 어떤 곳을 어떤 순서로 도는지 — 장소 이름을 이어서 보여줘야 '코스'로 읽힌다 */}
-          <ol className="pl-rec-flow">
-            {c.items.map((it, n) => (
-              <li key={n} className="pl-rec-stop">
-                <KindThumb kind={it.k} size={17} />
-                {it.n}
-              </li>
-            ))}
-          </ol>
-          <div className="pl-rec-meta">예상 소요시간 {durLabel(mins)} · 예상 비용 {won(cost)}</div>
-          <div className="pl-rec-go">코스 보기 <span aria-hidden>›</span></div>
-        </div>
+      <div
+        ref={trackRef}
+        className="pl-rec-track"
+        onPointerDown={() => setHeld(true)}
+        onWheel={() => setHeld(true)}
+        onScroll={(e) => {
+          const el = e.currentTarget
+          setI(Math.round(el.scrollLeft / slideStep(el, list.length)))
+        }}
+      >
+        {list.map((c) => {
+          const { mins, cost, first } = courseSummary(c)
+          return (
+            <div key={c.id} className="pl-rec-card" onClick={() => onOpen(c.id)} role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') onOpen(c.id) }}>
+              <div className="pl-rec-img">
+                {ready ? <KindThumb kind={c.items[0]?.k || ''} size={104} pid={first} /> : <div className="pl-rec-imgskel" />}
+              </div>
+              <div className="pl-rec-body">
+                <span className="pl-rec-badge">{c.area} · {c.items.length}곳</span>
+                <div className="pl-rec-t">{c.title}</div>
+                {/* 어떤 곳을 어떤 순서로 도는지 — 장소 이름을 이어서 보여줘야 '코스'로 읽힌다 */}
+                <ol className="pl-rec-flow">
+                  {c.items.map((it, n) => (
+                    <li key={n} className="pl-rec-stop">
+                      <KindThumb kind={it.k} size={17} />
+                      {it.n}
+                    </li>
+                  ))}
+                </ol>
+                <div className="pl-rec-meta">예상 소요시간 {durLabel(mins)} · 예상 비용 {won(cost)}</div>
+                <div className="pl-rec-go">코스 보기 <span aria-hidden>›</span></div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="pl-rec-dots">
         {list.map((x, n) => (
           <button key={x.id} type="button" className={n === i ? 'on' : ''}
-            onClick={() => { setHeld(true); setI(n) }} aria-label={`${n + 1}번째 추천 코스`} />
+            onClick={() => { setHeld(true); go(n) }} aria-label={`${n + 1}번째 추천 코스`} />
         ))}
       </div>
     </section>
