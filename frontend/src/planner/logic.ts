@@ -216,3 +216,8 @@ export function build(
 }
 
 export { COND, Q }
+
+/** 시간대 4구간의 기본 시작·종료 시각 (취향 요약의 시간대 막대) */
+export const HOUR_DEFAULT: Record<string, [number, number]> = { morning: [9, 11], noon: [12, 15], sunset: [16, 19], night: [19, 22] }
+/** 시작 시각 → 시간대 구간 (analyze 기준과 같음) */
+export const hourBucket = (h: number) => (h < 11 ? 'morning' : h < 16 ? 'noon' : h < 19 ? 'sunset' : 'night')

@@ -1,6 +1,7 @@
 import type { PhotoMeta } from './photoMeta'
 import type { Cond, Course } from './data'
 import type { Taste } from './logic'
+import { store } from '../app/storage'
 
 const BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '')
 
@@ -20,7 +21,7 @@ export async function fetchAiCourses(req: AiCourseRequest, signal?: AbortSignal)
   if (!BASE) throw new Error('VITE_API_BASE_URL이 설정되지 않았어요')
   let res: Response
   try {
-    const token = localStorage.getItem('nolda:login-token') // 로그인했으면 만든 코스를 내 코스로 저장
+    const token = store.loginToken.get() // 로그인했으면 만든 코스를 내 코스로 저장
     res = await fetch(`${BASE}/courses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

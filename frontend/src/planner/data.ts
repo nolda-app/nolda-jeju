@@ -175,3 +175,6 @@ export function label(opts: { v: string | number; l: string }[], v: string | num
   const f = opts.find((o) => o.v === v)
   return f ? f.l : ''
 }
+
+/** 브랜드 초록 */
+export const GREEN = '#00A46E'
