@@ -4,7 +4,7 @@ import NaverMap from '../planner/NaverMap'
 import PlacePreview from '../planner/PlacePreview'
 import { fetchPlaceDetails } from '../planner/api'
 import type { PlaceDetail } from '../planner/api'
-import { placeGeo } from '../planner/geo'
+import { loadPlaces, placeGeo } from '../planner/geo'
 import { useWalkLegs } from '../planner/useWalkLegs'
 import { GREEN } from '../planner/data'
 import type { BuiltCourse } from '../planner/logic'
@@ -136,6 +136,14 @@ function BookButton({ item, isBooked, onClick }: { item: BuiltCourse['items'][nu
 }
 
 function RouteMap({ course }: { course: BuiltCourse }) {
+  // 장소 목록(좌표)이 아직 안 왔을 수 있다 — 공유 링크·새로고침으로 상세에 바로 들어오면 그렇다.
+  // 도착하면 핀을 다시 계산해야 지도가 뜬다 (안 그러면 '지도가 없어요'로 굳는다)
+  const [placesReady, setPlacesReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    loadPlaces().then(() => { if (alive) setPlacesReady(true) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
   const markers = useMemo(
     // 실제 장소(pid)가 연결된 곳만 핀 표시
     () => course.markers.flatMap((mk, i) => {
@@ -143,7 +151,7 @@ function RouteMap({ course }: { course: BuiltCourse }) {
       return g ? [{ no: mk.no, name: mk.name, time: mk.time, lat: g[0], lng: g[1] }] : []
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [course.id, course.markers.map((m) => m.name + m.time).join('|')],
+    [course.id, course.markers.map((m) => m.name + m.time).join('|'), placesReady],
   )
 
   // 핀이 하나라도 빠지면 구간 순서가 어긋나므로 직선으로 대체
