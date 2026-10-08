@@ -137,6 +137,10 @@ function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: str
   const trackRef = useRef<HTMLDivElement>(null)
 
   const go = (n: number) => slideTo(trackRef.current, n, list.length)
+  // 마우스로 끌어 넘기기 — 터치는 브라우저가 가로 스크롤해 주지만 마우스 드래그는 직접 옮겨야 한다.
+  // 끌다 놓으면 가까운 카드로 맞추고, 조금이라도 끌었으면 놓을 때의 클릭(코스 열기)은 무시한다
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
+  const dragged = useRef(false)
 
   // 손대기 전까지 자동으로 다음 코스로 (마지막 다음은 처음)
   useEffect(() => {
@@ -155,7 +159,39 @@ function RecCourses({ ready, onOpen, onAll }: { ready: boolean; onOpen: (id: str
       <div
         ref={trackRef}
         className="pl-rec-track"
-        onPointerDown={() => setHeld(true)}
+        onPointerDown={(e) => {
+          setHeld(true)
+          dragged.current = false
+          if (e.pointerType !== 'mouse' || e.button !== 0) return
+          drag.current = { x: e.clientX, left: e.currentTarget.scrollLeft, moved: false }
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current
+          if (!d) return
+          const dx = e.clientX - d.x
+          if (!d.moved && Math.abs(dx) < 5) return
+          if (!d.moved) {
+            d.moved = true
+            e.currentTarget.setPointerCapture(e.pointerId)
+            e.currentTarget.classList.add('is-drag') // 끄는 동안은 스냅을 꺼야 손을 따라 움직인다
+          }
+          e.currentTarget.scrollLeft = d.left - dx
+        }}
+        onPointerUp={(e) => {
+          const d = drag.current
+          drag.current = null
+          if (!d?.moved) return
+          dragged.current = true
+          const el = e.currentTarget
+          // 조금만 밀어도 넘어가게 — 끈 방향으로 한 장. 스냅을 다시 켜기 전에 재야 한다 (켜는 순간 위치가 튕긴다)
+          const from = Math.round(d.left / slideStep(el, list.length))
+          const moved = el.scrollLeft - d.left // 왼쪽으로 끌면 +, 오른쪽으로 끌면 −
+          el.classList.remove('is-drag')
+          go(Math.min(Math.max(from + (Math.abs(moved) > 40 ? Math.sign(moved) : 0), 0), list.length - 1))
+        }}
+        onPointerCancel={(e) => { drag.current = null; e.currentTarget.classList.remove('is-drag') }}
+        onClickCapture={(e) => { if (dragged.current) { e.stopPropagation(); dragged.current = false } }}
+        onDragStart={(e) => e.preventDefault()} // 사진을 끌어 옮기는 브라우저 기본 동작 막기
         onWheel={() => setHeld(true)}
         onScroll={(e) => {
           const el = e.currentTarget

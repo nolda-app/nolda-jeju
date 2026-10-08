@@ -838,6 +838,8 @@
 }
 
 .pl-rec-track::-webkit-scrollbar { display: none; }
+.pl-rec-track.is-drag { scroll-snap-type: none; cursor: grabbing; user-select: none; }
+@media (pointer: fine) { .pl-rec-track { cursor: grab; } }
 
 .pl-rec-track > .pl-rec-card {
   flex: 0 0 100%;
