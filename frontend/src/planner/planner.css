@@ -271,6 +271,10 @@
   .ks *, .ks-camera { animation: none !important; transition: none !important; }
 }
 
+.pl-trait-head { display: flex; align-items: baseline; gap: 10px; text-align: left; }
+/* 카드 제목·근거 — AI가 만든 주제는 문장이 길어 두 줄이 되기도 해서 줄 간격을 둔다 */
+.pl-trait-name { flex: 1; min-width: 0; font: 600 11.5px/1.45 var(--font); color: var(--ink-45); }
+.pl-trait-ev { flex: none; max-width: 55%; text-align: right; font: 600 11px/1.45 var(--font); color: var(--green-press); }
 .pl-traitcard { background: #fff; border: 1px solid var(--ink-06); border-radius: 20px; padding: 15px 16px; box-shadow: 0 6px 22px rgba(58, 52, 38, .05); }
 .pl-intentbox { margin-top: 16px; background: #fff; border: 1.5px solid #D8E64A; border-radius: 20px; padding: 16px; box-shadow: 0 6px 22px rgba(58, 52, 38, .05); }
 .pl-chip { padding: 10px 14px; border-radius: 99px; cursor: pointer; border: 1.5px solid; font: 600 13px/1 var(--font); transition: background .12s, color .12s; }
@@ -1269,11 +1273,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 13px;
+  padding: 7px 13px;
   border: 1px solid var(--ink-10);
   border-radius: 99px;
   background: #fff;
-  font: 600 12.5px/1 var(--font);
+  font: 600 12.5px/1.35 var(--font);
   color: var(--ink-80);
   cursor: pointer;
 }

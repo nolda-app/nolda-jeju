@@ -64,9 +64,9 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {traitCards.map((t) => (
             <div key={t.key} className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>{t.name}</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 var(--font)', color: 'var(--green-press)' }}>{t.evidence}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">{t.name}</span>
+                <span className="pl-trait-ev">{t.evidence}</span>
               </div>
               {t.key === 'hour' ? (
                 <HourRange range={hourRange} onChange={setHourRange} />
@@ -80,14 +80,14 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
             </div>
           ))}
           <div className="pl-traitcard">
-            <span style={{ font: '600 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>1인 예산</span>
+            <div className="pl-trait-head"><span className="pl-trait-name">1인 예산</span></div>
             <BudgetSlider value={budget} onChange={setBudget} />
           </div>
           {!dynamic && (
             <div className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>이런 것들이 자주 보였어요</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 var(--font)', color: 'var(--green-press)' }}>{report.evidence.tags}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">이런 것들이 자주 보였어요</span>
+                <span className="pl-trait-ev">{report.evidence.tags}</span>
               </div>
               <div style={{ marginTop: 11, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {tagChips.map((c) => (
@@ -99,9 +99,9 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
           {/* 이번 분석에서 새로 만든 주제 — 기록이 달라지면 주제와 선택지도 달라진다 */}
           {report.topics.map((t) => (
             <div key={t.key} className="pl-traitcard">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '600 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>{t.name}</span>
-                <span style={{ marginLeft: 'auto', font: '600 11px/1 var(--font)', color: 'var(--green-press)' }}>{t.evidence}</span>
+              <div className="pl-trait-head">
+                <span className="pl-trait-name">{t.name}</span>
+                <span className="pl-trait-ev">{t.evidence}</span>
               </div>
               <div style={{ marginTop: 11, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {t.opts.map((o) => (
