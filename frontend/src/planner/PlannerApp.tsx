@@ -6,12 +6,14 @@ import ShareSheet from './ShareSheet'
 import LiveCourse from './LiveCourse'
 import { loadPlaces } from './geo'
 import { useEffect, useRef, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { COND } from './data'
 import type { BuiltCourse } from './logic'
 import { store } from '../app/storage'
 import { AuthScreen, LoginErrorScreen } from '../auth/AuthScreen'
 import { useAuth } from '../auth/useAuth'
+import { RequireAuth } from '../auth/RequireAuth'
+import { afterLoginPath, rememberAfterLogin } from '../auth/afterLogin'
 import { DataSourceScreen } from '../taste/DataSourceScreen'
 import { ScanningScreen } from '../taste/ScanningScreen'
 import { SummaryScreen } from '../taste/SummaryScreen'
@@ -35,19 +37,12 @@ const MODAL_CLOSE_MS = 280 // planner.css pl-sheet-down 길이와 맞춤
  *   /course/:id  /course/:id/live   코스 상세 · 코스 진행(전체 화면 지도) — 로그인 없이 공유 링크로도 열림
  */
 const HOME_PATH: Record<Exclude<HomeTab, 'course'>, string> = { home: '/', search: '/search', saved: '/bookmarks', my: '/my' }
-const AUTH_PATHS = ['/start', '/analyze', '/result', '/courses', '/saved'] // 로그인해야 들어가는 화면
 const APP_TAB: Record<string, 'search' | 'saved'> = { '/courses': 'search', '/saved': 'saved' }
 
 // 소셜 로그인·유튜브 연동·옛 공유 링크(?course=)는 페이지를 새로 열고 '/?...'로 돌아온다 — 처음 한 번만 읽는다
 function readEntry() {
   const q = new URLSearchParams(window.location.search)
   return { yt: q.get('yt'), ytError: q.get('yt_error'), loginToken: q.get('login_token'), loginError: q.get('login_error'), course: q.get('course') }
-}
-
-const rememberAfterLogin = (path: string) => store.afterLogin.set(path)
-const afterLoginPath = () => {
-  const p = store.afterLogin.get()
-  return p?.startsWith('/') ? p : '/start'
 }
 
 /** 새로고침 대비 세션에 남기는 값 — 분석 결과 + 코스 조건·목록 */
@@ -209,86 +204,35 @@ export default function PlannerApp() {
   if (splash) {
     return <SplashScreen onDone={() => { store.splashed.set('1'); setSplash(false) }} />
   }
-  if (homeTab) {
-    return (
-      <HomeScreen
-        authed={authed}
-        userName={auth.user?.name || ''}
-        avatar={auth.user?.avatar || null}
-        savedCourses={courses.savedCourses}
-        tab={homeTab}
-        onRename={rename}
-        // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
-        onLogout={() => { logout(); navigate('/') }}
-        // 로그인만 하러 감 — 끝나면 홈으로
-        onLogin={() => { rememberAfterLogin('/'); navigate('/login') }}
-        setTab={(t) => {
-          // '코스'는 홈 안의 화면이 아니라 코스 목록으로 나간다 (아직 분석 전이면 사진·유튜브 고르기부터)
-          if (t !== 'course') return navigate(HOME_PATH[t])
-          if (done) return navigate('/courses')
-          startOver()
-        }}
-        // 분석을 이미 끝냈어도 홈에서 다시 시작하면 사진·유튜브 화면부터 보여준다
-        onStart={startOver}
-        // 저장한 코스는 분석을 건너뛰고 앱 안쪽 '저장' 탭에서 바로 연다
-        onOpenSaved={() => navigate('/saved')}
-        // 홈의 추천 코스 — 분석을 건너뛰고 코스 상세를 바로 연다 (닫으면 홈으로 돌아온다)
-        onOpenCourse={(id) => navigate(`/course/${encodeURIComponent(id)}`)}
-      />
-    )
-  }
-  if (path === '/login') {
-    // 이미 로그인했으면(게스트로 둘러보기 포함) 로그인하러 오기 전에 가려던 곳으로
-    if (authed) return <Navigate to={afterLoginPath()} replace />
-    return <AuthScreen auth={auth} setAuth={setAuth} goHome={() => navigate('/')} />
-  }
-  if (AUTH_PATHS.includes(path) && !authed) {
-    rememberAfterLogin(path)
-    return <Navigate to="/login" replace />
-  }
-  if (path === '/start') {
-    return (
-      <DataSourceScreen
-        sources={scan.sources} setSources={scan.setSources} goHome={() => { restart(); navigate('/') }} startScan={scan.startScan} skipScan={skipScan} error={scan.ytError}
-        photoCount={scan.photoCount} onPickPhotos={scan.onPickPhotos} onClearPhotos={scan.onClearPhotos}
-      />
-    )
-  }
-  if (path === '/analyze') {
-    // 분석 도중 새로고침하면 이어갈 수 없다 — 결과가 있으면 결과로, 없으면 데이터 고르기로
-    if (!scan.scanning) return <Navigate to={scan.report ? '/result' : '/start'} replace />
-    return (
-      <ScanningScreen
-        sources={scan.scanInput.src} yt={scan.scanInput.yt} loading={scan.ytLoading} scanN={scan.scanN} photoUrls={scan.photoUrls} ready={scan.scanReady} onResult={scan.showResult}
-        swipes={scan.swipes} onSwipe={scan.onSwipe}
-        cancelScan={scan.cancelScan}
-      />
-    )
-  }
-  if (path === '/result') {
-    const { report, taste } = scan
-    if (!report) return <Navigate to="/start" replace />
-    return (
-      <SummaryScreen
-        report={report} taste={taste} setTaste={scan.setTaste} tags={scan.tags} setTags={scan.setTags}
-        picks={scan.picks} setPicks={scan.setPicks}
-        intent={scan.intent} setIntent={scan.setIntent} toStart={startOver} rescan={scan.rescan}
-        finish={() => {
-          // 혼자·연인이면 인원 조건도 맞춤 (친구·가족·동료는 인원이 제각각이라 그대로)
-          const people = taste.companion === 'solo' ? 1 : taste.companion === 'couple' ? 2 : 0
-          if (people) setCond((c) => ({ ...c, people }))
-          setDone(true)
-          navigate('/courses')
-        }}
-        hourRange={scan.range} setHourRange={scan.setHourRange}
-        budget={cond.budget} setBudget={(budget) => setCond((c) => ({ ...c, budget }))}
-      />
-    )
-  }
-  // 모르는 주소는 홈으로
-  if (!tab && !openId) return <Navigate to="/" replace />
+  const home = homeTab && (
+    <HomeScreen
+      authed={authed}
+      userName={auth.user?.name || ''}
+      avatar={auth.user?.avatar || null}
+      savedCourses={courses.savedCourses}
+      tab={homeTab}
+      onRename={rename}
+      // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
+      onLogout={() => { logout(); navigate('/') }}
+      // 로그인만 하러 감 — 끝나면 홈으로
+      onLogin={() => { rememberAfterLogin('/'); navigate('/login') }}
+      setTab={(t) => {
+        // '코스'는 홈 안의 화면이 아니라 코스 목록으로 나간다 (아직 분석 전이면 사진·유튜브 고르기부터)
+        if (t !== 'course') return navigate(HOME_PATH[t])
+        if (done) return navigate('/courses')
+        startOver()
+      }}
+      // 분석을 이미 끝냈어도 홈에서 다시 시작하면 사진·유튜브 화면부터 보여준다
+      onStart={startOver}
+      // 저장한 코스는 분석을 건너뛰고 앱 안쪽 '저장' 탭에서 바로 연다
+      onOpenSaved={() => navigate('/saved')}
+      // 홈의 추천 코스 — 분석을 건너뛰고 코스 상세를 바로 연다 (닫으면 홈으로 돌아온다)
+      onOpenCourse={(id) => navigate(`/course/${encodeURIComponent(id)}`)}
+    />
+  )
 
-  return (
+  // 코스 목록·저장 탭 + 그 위에 뜨는 코스 상세·코스 진행
+  const app = (
     <div className="pl-app">
       {tab === 'search' && (
         <SearchTab
@@ -344,5 +288,53 @@ export default function PlannerApp() {
       {shareEl}
       {toastEl}
     </div>
+  )
+
+  // 경로 = 화면 (맨 위 주석의 경로 표와 같다)
+  return (
+    <Routes>
+      {Object.values(HOME_PATH).map((p) => <Route key={p} path={p} element={home} />)}
+      {/* 이미 로그인했으면(게스트로 둘러보기 포함) 로그인하러 오기 전에 가려던 곳으로 */}
+      <Route path="/login" element={authed ? <Navigate to={afterLoginPath()} replace /> : <AuthScreen auth={auth} setAuth={setAuth} goHome={() => navigate('/')} />} />
+      <Route element={<RequireAuth authed={authed} />}>
+        <Route path="/start" element={
+          <DataSourceScreen
+            sources={scan.sources} setSources={scan.setSources} goHome={() => { restart(); navigate('/') }} startScan={scan.startScan} skipScan={skipScan} error={scan.ytError}
+            photoCount={scan.photoCount} onPickPhotos={scan.onPickPhotos} onClearPhotos={scan.onClearPhotos}
+          />
+        } />
+        {/* 분석 도중 새로고침하면 이어갈 수 없다 — 결과가 있으면 결과로, 없으면 데이터 고르기로 */}
+        <Route path="/analyze" element={!scan.scanning ? <Navigate to={scan.report ? '/result' : '/start'} replace /> : (
+          <ScanningScreen
+            sources={scan.scanInput.src} yt={scan.scanInput.yt} loading={scan.ytLoading} scanN={scan.scanN} photoUrls={scan.photoUrls} ready={scan.scanReady} onResult={scan.showResult}
+            swipes={scan.swipes} onSwipe={scan.onSwipe}
+            cancelScan={scan.cancelScan}
+          />
+        )} />
+        <Route path="/result" element={!scan.report ? <Navigate to="/start" replace /> : (
+          <SummaryScreen
+            report={scan.report} taste={scan.taste} setTaste={scan.setTaste} tags={scan.tags} setTags={scan.setTags}
+            picks={scan.picks} setPicks={scan.setPicks}
+            intent={scan.intent} setIntent={scan.setIntent} toStart={startOver} rescan={scan.rescan}
+            finish={() => {
+              // 혼자·연인이면 인원 조건도 맞춤 (친구·가족·동료는 인원이 제각각이라 그대로)
+              const people = scan.taste.companion === 'solo' ? 1 : scan.taste.companion === 'couple' ? 2 : 0
+              if (people) setCond((c) => ({ ...c, people }))
+              setDone(true)
+              navigate('/courses')
+            }}
+            hourRange={scan.range} setHourRange={scan.setHourRange}
+            budget={cond.budget} setBudget={(budget) => setCond((c) => ({ ...c, budget }))}
+          />
+        )} />
+        <Route path="/courses" element={app} />
+        <Route path="/saved" element={app} />
+      </Route>
+      {/* 코스 상세·진행은 로그인 없이도 열린다 (공유 링크) */}
+      <Route path="/course/:id" element={app} />
+      <Route path="/course/:id/live" element={app} />
+      {/* 모르는 주소는 홈으로 */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

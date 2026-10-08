@@ -48,6 +48,18 @@ describe('경로별 화면', () => {
     await waitFor(() => expect(where()).toBe('/'))
   })
 
+  it('주소 끝에 / 가 붙어도 같은 화면', async () => {
+    login()
+    open('/start/')
+    expect(await screen.findByText('취향 유형 테스트')).toBeInTheDocument()
+  })
+
+  it('/course/:id/live — 로그인 없이 코스 상세 위에 진행 화면을 연다', async () => {
+    open(`/course/${COURSES[2].id}/live`)
+    expect(await screen.findAllByText(COURSES[2].title)).not.toHaveLength(0)
+    expect(where()).toBe(`/course/${COURSES[2].id}/live`)
+  })
+
   it('/start — 데이터 고르기', async () => {
     login()
     open('/start')
