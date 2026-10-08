@@ -275,7 +275,7 @@ export default function PlannerApp() {
           closing={modalClosing}
         />
       ) : openId && !tab && (
-        <div style={{ padding: '120px 24px', textAlign: 'center', font: '600 14px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>코스를 불러오고 있어요</div>
+        <div style={{ padding: '120px 24px', textAlign: 'center', font: '600 14px/1.6 var(--font)', color: 'var(--ink-45)' }}>코스를 불러오고 있어요</div>
       )}
       {liveCourse && (
         <LiveCourse

@@ -86,7 +86,7 @@ export default function CourseCard({ s, onOpen }: { s: BuiltCourse; onOpen: () =
       <div className="pl-coursewhy pl-clamp2">{s.why}</div>
       <div className="pl-coursefoot">
         <span>{s.moveLine}</span>
-        <span style={{ color: 'rgba(20,24,33,.42)' }}>{s.bookLine}</span>
+        <span style={{ color: 'var(--ink-45)' }}>{s.bookLine}</span>
         <span className="pl-cardcost">{s.costLabel}</span>
       </div>
       {preview !== null && (

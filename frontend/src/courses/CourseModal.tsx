@@ -41,17 +41,17 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
           <div className="pl-sheet-handle" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span className="pl-matchtag" style={{ background: course.tintBg, color: course.tintFg }}>{course.matchLabel}</span>
-            <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.area} · {course.span}</span>
+            <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1 var(--font)', color: 'var(--ink-45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.area} · {course.span}</span>
             <div className="pl-closebtn" onClick={close}>✕</div>
           </div>
           <div className="pl-h1" style={{ fontSize: 24 }}>{course.title}</div>
-          <div style={{ marginTop: 8, font: '400 13px/1.65 Pretendard,sans-serif', color: 'rgba(20,24,33,.58)' }}>{course.why}</div>
+          <div style={{ marginTop: 8, font: '400 13px/1.65 var(--font)', color: 'var(--ink-60)' }}>{course.why}</div>
           {course.estimated && (
-            <div style={{ marginTop: 6, font: '500 11.5px/1.5 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>AI가 만든 코스예요 · 체류 시간·가격은 추정값이에요</div>
+            <div style={{ marginTop: 6, font: '500 11.5px/1.5 var(--font)', color: 'var(--ink-45)' }}>AI가 만든 코스예요 · 체류 시간·가격은 추정값이에요</div>
           )}
-          <div style={{ marginTop: 10, display: 'inline-block', padding: '6px 11px', borderRadius: 99, background: '#E4F4EC', font: '600 11.5px/1 Pretendard,sans-serif', color: '#00734F' }}>{course.moveLine} · 총 {course.dur}</div>
+          <div style={{ marginTop: 10, display: 'inline-block', padding: '6px 11px', borderRadius: 99, background: 'var(--green-soft)', font: '600 11.5px/1 var(--font)', color: 'var(--green-deep)' }}>{course.moveLine} · 총 {course.dur}</div>
         </div>
-        <div className="pl-scroll" style={{ padding: '6px 22px 20px', borderTop: '1px solid rgba(20,24,33,.06)' }}>
+        <div className="pl-scroll" style={{ padding: '6px 22px 20px', borderTop: '1px solid var(--ink-06)' }}>
           <RouteMap course={course} />
           <div style={{ paddingTop: 18 }}>
             {course.items.map((it, i) => (
@@ -60,19 +60,19 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
                   <div style={{ display: 'flex', gap: 13, alignItems: 'center', margin: '-14px 0 12px' }}>
                     <div style={{ flex: 'none', width: 44 }} />
                     <div style={{ flex: 'none', width: 11, display: 'flex', justifyContent: 'center' }}>
-                      <div style={{ width: 1, height: 34, background: 'repeating-linear-gradient(to bottom,rgba(20,24,33,.22) 0 4px,transparent 4px 8px)' }} />
+                      <div style={{ width: 1, height: 34, background: 'repeating-linear-gradient(to bottom,var(--ink-15) 0 4px,transparent 4px 8px)' }} />
                     </div>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ padding: '5px 10px', borderRadius: 99, background: it.moveTint, color: '#fff', font: '700 11px/1 Pretendard,sans-serif' }}>{it.moveLabel}</span>
-                      <span style={{ font: '500 11.5px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.45)' }}>{it.moveDetail}</span>
+                      <span style={{ padding: '5px 10px', borderRadius: 99, background: it.moveTint, color: '#fff', font: '700 11px/1 var(--font)' }}>{it.moveLabel}</span>
+                      <span style={{ font: '500 11.5px/1 var(--font)', color: 'var(--ink-45)' }}>{it.moveDetail}</span>
                     </div>
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 13 }}>
-                  <div style={{ flex: 'none', width: 44, paddingTop: 2, font: '700 12.5px/1.5 Pretendard,sans-serif', color: 'rgba(20,24,33,.42)' }}>{it.time}</div>
+                  <div style={{ flex: 'none', width: 44, paddingTop: 2, font: '700 12.5px/1.5 var(--font)', color: 'var(--ink-45)' }}>{it.time}</div>
                   <div style={{ flex: 'none', width: 11, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{ width: 11, height: 11, borderRadius: 99, marginTop: 5, border: `2.5px solid ${course.tint}`, background: '#fff' }} />
-                    <div style={{ flex: 1, width: 1, background: 'rgba(20,24,33,.12)' }} />
+                    <div style={{ flex: 1, width: 1, background: 'var(--ink-10)' }} />
                   </div>
                   <div style={{ flex: 1, paddingBottom: 22 }}>
                     <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setPreview(i)}>
@@ -82,8 +82,8 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
                         <KindThumb kind={it.kind} pid={it.pid} />
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ font: '700 15.5px/1.4 Pretendard,sans-serif', letterSpacing: '-.02em', color: '#141821' }}>{it.name}</div>
-                        <div style={{ marginTop: 4, font: '400 12.5px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>{it.note}</div>
+                        <div style={{ font: '700 15.5px/1.4 var(--font)', letterSpacing: '-.02em', color: 'var(--ink)' }}>{it.name}</div>
+                        <div style={{ marginTop: 4, font: '400 12.5px/1.6 var(--font)', color: 'var(--ink-45)' }}>{it.note}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
                           <span className="pl-kindchip">{it.kind}</span>
                           <span className="pl-kindchip">{it.dur}</span>
@@ -98,20 +98,20 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
                 </div>
               </div>
             ))}
-            <div style={{ padding: '15px 16px', borderRadius: 16, background: '#E4F4EC', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, font: '600 12.5px/1.5 Pretendard,sans-serif', color: 'rgba(20,24,33,.62)' }}>{course.totalNote}</div>
-              <div style={{ font: '800 19px/1 Pretendard,sans-serif', color: '#141821' }}>{course.costLabel}</div>
+            <div style={{ padding: '15px 16px', borderRadius: 16, background: 'var(--green-soft)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, font: '600 12.5px/1.5 var(--font)', color: 'var(--ink-60)' }}>{course.totalNote}</div>
+              <div style={{ font: '800 19px/1 var(--font)', color: 'var(--ink)' }}>{course.costLabel}</div>
             </div>
           </div>
         </div>
-        <div style={{ flex: 'none', padding: '14px 22px 30px', display: 'flex', alignItems: 'stretch', gap: 9, borderTop: '1px solid rgba(20,24,33,.06)' }}>
+        <div style={{ flex: 'none', padding: '14px 22px 30px', display: 'flex', alignItems: 'stretch', gap: 9, borderTop: '1px solid var(--ink-06)' }}>
           <button type="button" className="pl-heartbtn" aria-pressed={isSaved} aria-label={isSaved ? '저장 취소' : '코스 저장'} title={isSaved ? '저장 취소' : '코스 저장'} onClick={toggleSave}>
             {isSaved ? '♥' : '♡'}
           </button>
           <div className="pl-cta" style={{ flex: 1, margin: 0, boxSizing: 'border-box', border: '1px solid transparent' }} onClick={start}>
             코스 시작
           </div>
-          <div style={{ flex: 'none', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 18px', borderRadius: 17, border: '1px solid rgba(20,24,33,.12)', font: '600 15px/1 Pretendard,sans-serif', color: 'rgba(20,24,33,.65)', cursor: 'pointer' }} onClick={share}>공유</div>
+          <div style={{ flex: 'none', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 18px', borderRadius: 'var(--r-md)', border: '1px solid var(--ink-10)', font: '600 15px/1 var(--font)', color: 'var(--ink-60)', cursor: 'pointer' }} onClick={share}>공유</div>
         </div>
       </div>
       {preview !== null && (
@@ -125,9 +125,9 @@ function BookButton({ item, isBooked, onClick }: { item: BuiltCourse['items'][nu
   const providerDot = item.provider === '캐치테이블 예약' ? '#E2452F' : '#03C75A'
   return (
     <div className="pl-bookbtn" style={{
-      background: isBooked ? '#E4F4EC' : '#fff',
-      borderColor: isBooked ? GREEN : 'rgba(20,24,33,.14)',
-      color: isBooked ? '#00734F' : '#141821',
+      background: isBooked ? 'var(--green-soft)' : '#fff',
+      borderColor: isBooked ? GREEN : 'var(--ink-15)',
+      color: isBooked ? 'var(--green-deep)' : 'var(--ink)',
     }} onClick={onClick}>
       <span className="pl-bookdot" style={{ background: providerDot }} />
       {isBooked ? '예약 요청됨' : item.provider}
@@ -158,7 +158,7 @@ function RouteMap({ course }: { course: BuiltCourse }) {
       <NaverMap markers={markers} color={GREEN} paths={paths} activeLeg={leg} legOnly />
       <div className="pl-mapbadges">
         <span className="pl-mapbadge">{course.area}</span>
-        <span className="pl-mapbadge" style={{ color: '#00845A' }}>{course.moveLine}</span>
+        <span className="pl-mapbadge" style={{ color: 'var(--green-press)' }}>{course.moveLine}</span>
       </div>
     </div>
       {legs > 1 && (

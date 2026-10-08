@@ -48,7 +48,7 @@ export function AuthScreen({ auth, setAuth, goHome }: {
           {'반가워요!\n오늘은 뭐 하고 놀까요'}
         </div>
         <div className="pl-sub">
-          {signup ? '가입하면 저장한 코스와 취향이 기기 간에 따라와요.' : '이메일로 로그인하면 저장한 코스가 그대로 있어요.'}
+          {signup ? '가입하면 저장한 코스와 취향이 기기 간에 따라와요.' : '로그인하면 저장한 코스가 기기를 바꿔도 그대로 있어요.'}
         </div>
 
         {/* 이메일·비밀번호 로그인은 아직 구현 전이라 임시로 주석 처리. 소셜 로그인·게스트 이용만 우선 제공 */}
@@ -90,7 +90,7 @@ export function AuthScreen({ auth, setAuth, goHome }: {
       {/* 이메일 회원가입/로그인 전환 링크 — 위 폼과 함께 임시로 주석 처리 (지우지 않고 보존) */}
       {/*
       <div className="pl-authfoot">
-        <span style={{ color: 'rgba(20,24,33,.5)' }}>{signup ? '이미 계정이 있나요? ' : '처음이신가요? '}</span>
+        <span style={{ color: 'var(--ink-45)' }}>{signup ? '이미 계정이 있나요? ' : '처음이신가요? '}</span>
         <span className="pl-link" onClick={() => setAuth({ mode: signup ? 'login' : 'signup', error: '' })}>{signup ? '로그인' : '회원가입'}</span>
       </div>
       */}
@@ -108,8 +108,8 @@ export function LoginErrorScreen({ message, goHome }: { message: string; goHome:
           <div className="pl-badge-s">놀다</div>
         </div>
         <div style={{
-          marginTop: 36, width: 56, height: 56, borderRadius: '50%', background: 'rgba(224,87,74,.12)', color: '#e0574a',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 26px/1 Pretendard,sans-serif',
+          marginTop: 36, width: 56, height: 56, borderRadius: '50%', background: 'rgba(224,87,74,.12)', color: 'var(--danger)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 26px/1 var(--font)',
         }}>!</div>
         <div className="pl-h1" style={{ marginTop: 20, fontSize: 22 }}>로그인에 실패했어요</div>
         <div className="pl-sub" style={{ marginTop: 10 }}>{message}</div>
@@ -129,7 +129,7 @@ export function LoginErrorScreen({ message, goHome }: { message: string; goHome:
 //       <input
 //         type={type} value={value} placeholder={placeholder}
 //         onChange={(e) => onChange(e.target.value)}
-//         className="pl-input" style={{ borderColor: borderColor || 'rgba(20,24,33,.1)' }}
+//         className="pl-input" style={{ borderColor: borderColor || 'var(--ink-10)' }}
 //       />
 //     </div>
 //   )

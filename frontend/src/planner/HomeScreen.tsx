@@ -286,7 +286,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
       )}
 
       <div className="pl-scroll" ref={scrollRef} style={{ padding: home ? '0 0 168px' : '0 0 104px' }}>
-        {failed && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
+        {failed && !home && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
 
         {home && (
           <>
@@ -294,6 +294,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
             <Hero />
 
             <div className="pl-homesheet">
+            {failed && <div className="pl-home-empty">장소를 불러오지 못했어요. 잠시 뒤 다시 열어주세요.</div>}
             <RecCourses ready={ready} onOpen={onOpenCourse} onAll={() => setTab('course')} />
 
             <div className="pl-home-pad">

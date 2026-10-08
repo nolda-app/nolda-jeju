@@ -1,111 +1,49 @@
+/* NOLDA 디자인 토큰 — 색·모서리·글꼴은 여기 값만 쓴다 (planner.css·화면 인라인 스타일 모두 var(--…)) */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* 브랜드 초록 */
+  --green: #00A46E;        /* 주 버튼·선택됨 */
+  --green-press: #00845A;  /* 눌림·초록 글자 */
+  --green-deep: #00734F;   /* 연한 초록 배경 위 글자 */
+  --green-soft: #E4F4EC;   /* 연한 초록 배경 */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* 글자·선 — 잉크색(#141821) 하나에 투명도만 바꿔 쓴다 */
+  --ink: #141821;
+  --ink-2: #2C3444;
+  --ink-80: rgba(20, 24, 33, .8);
+  --ink-60: rgba(20, 24, 33, .6);   /* 본문 보조 */
+  --ink-45: rgba(20, 24, 33, .45);  /* 설명·캡션 */
+  --ink-30: rgba(20, 24, 33, .3);   /* 비활성·아이콘 */
+  --ink-15: rgba(20, 24, 33, .15);  /* 진한 선 */
+  --ink-10: rgba(20, 24, 33, .1);   /* 테두리 */
+  --ink-06: rgba(20, 24, 33, .06);  /* 구분선 */
+  --ink-04: rgba(20, 24, 33, .04);  /* 옅은 칠 */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
+  --bg: #FAF8F3;       /* 화면 배경 */
+  --surface: #fff;     /* 카드·시트 */
+  --danger: #E0574A;
+  --danger-soft: #FDECEB;
+
+  /* 모서리 */
+  --r-sm: 12px;
+  --r-md: 16px;   /* 버튼·입력·작은 카드 */
+  --r-lg: 22px;   /* 카드 */
+  --r-pill: 99px;
+
+  --font: Pretendard, system-ui, sans-serif;
+
+  color-scheme: light; /* 앱은 밝은 화면 하나뿐 — 다크모드 기기에서 입력창만 어둡게 바뀌지 않게 */
+  font-family: var(--font);
+  color: var(--ink);
   background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
 }
 
 body {
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+#root {
+  min-height: 100svh;
+  text-align: center; /* 화면들이 가운데 정렬을 물려받는 걸 전제로 만들어져 있다 (왼쪽 정렬은 각 화면이 직접 지정) */
 }

@@ -43,14 +43,14 @@ export function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, 
           <div className="pl-pillbtn" onClick={restart}>다시 분석</div>
         </div>
         <div style={{ marginTop: 6, textAlign: 'center' }}>
-          <div style={{ font: '400 11.5px/1.4 Pretendard,sans-serif', color: 'rgba(20,24,33,.45)' }}>{profileLine}</div>
+          <div style={{ font: '400 11.5px/1.4 var(--font)', color: 'var(--ink-45)' }}>{profileLine}</div>
           <div className="pl-h1" style={{ marginTop: 8, fontSize: 25 }}>{resultHead}</div>
         </div>
         <div className="pl-chipbar">
           {condChips.map((c) => {
             const on = (cond as any)[c.key] !== (DEFAULT_COND as any)[c.key]
             return (
-              <div key={c.key} className="pl-condchip" style={{ background: on ? '#141821' : '#fff', borderColor: on ? '#141821' : 'rgba(20,24,33,.1)', color: on ? '#fff' : 'rgba(20,24,33,.7)' }} onClick={() => setSheetKey(c.key)}>
+              <div key={c.key} className="pl-condchip" style={{ background: on ? 'var(--ink)' : '#fff', borderColor: on ? 'var(--ink)' : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-60)' }} onClick={() => setSheetKey(c.key)}>
                 <span style={{ opacity: 0.5, fontWeight: 500 }}>{c.name}</span>{labelOf(c.opts, (cond as any)[c.key])}<span style={{ opacity: 0.55 }}>▾</span>
               </div>
             )
@@ -58,7 +58,7 @@ export function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, 
           {condDirty && <div className="pl-condchip pl-condchip-reset" onClick={resetCond}>초기화</div>}
         </div>
       </div>
-      <div className="pl-scroll" style={{ padding: '16px 20px 96px', borderTop: '1px solid rgba(20,24,33,.06)' }}>
+      <div className="pl-scroll" style={{ padding: '16px 20px 96px', borderTop: '1px solid var(--ink-06)' }}>
         <AiBanner ai={ai} generateAi={generateAi} courses={built} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {ai.status === 'loading' && !filtered.length
@@ -69,8 +69,8 @@ export function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, 
         </div>
         {filtered.length === 0 && (ai.status === 'done' || ai.status === 'error') && (
           <div style={{ padding: '40px 22px', textAlign: 'center' }}>
-            <div style={{ font: '700 15.5px/1.5 Pretendard,sans-serif', color: '#141821' }}>이 조건에 맞는 코스가 없어요</div>
-            <div style={{ marginTop: 7, font: '400 13px/1.6 Pretendard,sans-serif', color: 'rgba(20,24,33,.5)' }}>{emptyHint}</div>
+            <div style={{ font: '700 15.5px/1.5 var(--font)', color: 'var(--ink)' }}>이 조건에 맞는 코스가 없어요</div>
+            <div style={{ marginTop: 7, font: '400 13px/1.6 var(--font)', color: 'var(--ink-45)' }}>{emptyHint}</div>
             <div className="pl-cta" style={{ display: 'inline-block', marginTop: 16, padding: '13px 20px', borderRadius: 99 }} onClick={resetCond}>조건 초기화</div>
           </div>
         )}
@@ -88,7 +88,7 @@ export function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, 
                 const on = (cond as any)[sheet.key] === o.v
                 const n = sheet.key === 'people' ? '' : built.filter((c) => matchCond(c, { ...cond, [sheet.key]: o.v } as any)).length
                 return (
-                  <div key={String(o.v)} className="pl-sheetopt" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'rgba(20,24,33,.12)', color: on ? '#fff' : '#2c3444' }}
+                  <div key={String(o.v)} className="pl-sheetopt" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }}
                     onClick={() => { setCond((st) => ({ ...st, [sheet.key]: o.v })); setSheetKey(null) }}>
                     {o.l}{n !== '' && <span style={{ marginLeft: 7, opacity: 0.55, fontWeight: 500 }}>{n}</span>}
                   </div>
