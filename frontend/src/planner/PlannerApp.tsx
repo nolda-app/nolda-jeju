@@ -9,8 +9,8 @@ import { stashPhotos, takePhotos } from './photoStash'
 import { loadPlaces } from './geo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { analyzeTaste, deleteSavedCourse, fetchAiCourses, fetchCourse, fetchMe, fetchSavedCourses, putSavedCourse, fetchYoutubeTaste, updateMe, youtubeAuthorizeUrl } from './api'
-import type { AuthFailure, TasteProfile, YoutubeTaste } from './api'
+import { analyzeTaste, deleteSavedCourse, fetchAiCourses, fetchCourse, fetchSavedCourses, putSavedCourse, fetchYoutubeTaste, youtubeAuthorizeUrl } from './api'
+import type { TasteProfile, YoutubeTaste } from './api'
 import { keepReadable, readPhotos } from './photoMeta'
 import { COND, COURSES, DEFAULT_COND } from './data'
 import type { Course } from './data'
@@ -18,7 +18,7 @@ import { HOUR_DEFAULT, analyzeYoutubeOnly, applyPicks, build, hourBucket, matchC
 import type { Picks, Report, Taste, BuiltCourse, Sources } from './logic'
 import { store } from '../app/storage'
 import { AuthScreen, LoginErrorScreen } from '../auth/AuthScreen'
-import type { AuthState } from '../auth/AuthScreen'
+import { useAuth } from '../auth/useAuth'
 import { DataSourceScreen } from '../taste/DataSourceScreen'
 import { ScanningScreen } from '../taste/ScanningScreen'
 import type { ScanResult } from '../taste/ScanningScreen'
@@ -96,14 +96,7 @@ export default function PlannerApp() {
   const liveId = courseMatch?.[2] ? openId : null
   const homeTab = (Object.keys(HOME_PATH) as (keyof typeof HOME_PATH)[]).find((k) => HOME_PATH[k] === path) || null
 
-  const [auth, setAuthState] = useState<AuthState>(() => ({
-    mode: 'login', name: '', email: '', pw: '', error: '', user: null, skipped: false,
-    // 저장된 토큰을 처음부터 들고 시작한다. 서버 확인(fetchMe)이 늦거나 실패해도
-    // 그동안 로그인 화면이 뜨지 않게 하려는 것 — 확인되면 user가 채워진다
-    token: entry.loginToken || store.loginToken.get(),
-  }))
-  // 소셜 로그인에서 리디렉션으로 돌아왔는데 실패했을 때 보여줄 전용 화면 (폼 안 작은 에러 문구랑 별개)
-  const [loginError, setLoginError] = useState<string | null>(null)
+  const { auth, setAuth, authed, loginError, clearLoginError, restore: restoreAuth, logout: signOut, rename } = useAuth(entry)
   const [sources, setSources] = useState<Sources>({ youtube: true, photos: false })
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [ytError, setYtError] = useState('')
@@ -148,11 +141,6 @@ export default function PlannerApp() {
   const aiAbort = useRef<AbortController | null>(null)
   const [modalClosing, setModalClosing] = useState(false)
   const closeTimer = useRef<number | null>(null)
-
-  const setAuth = (o: Partial<AuthState>) => setAuthState((st) => ({ ...st, ...o }))
-  // 토큰이 있으면 로그인한 사람이다. 서버가 자고 있어(무료 플랜은 15분 뒤 잠든다)
-  // 확인이 늦어도 로그인 화면으로 튕기지 않는다. 토큰이 실제로 죽었을 때만 아래에서 지운다
-  const authed = !!auth.user || auth.skipped || !!auth.token
 
   // 코스 상세 뒤에 깔릴 목록 — 목록에서 열었으면 그 목록, 주소로 바로 들어왔으면 코스 목록(분석을 끝낸 사람만)
   const bg = (location.state as { bg?: string } | null)?.bg ?? (done && authed ? '/courses' : null)
@@ -363,7 +351,7 @@ export default function PlannerApp() {
     ytHandled.current = true
     const pending = readPending()
     const src = pending?.sources || { youtube: true, photos: false }
-    if (pending) { setAuthState(pending.auth); setSources(src) }
+    if (pending) { restoreAuth(pending.auth); setSources(src) }
     if (err) return setYtError(err === 'access_denied' ? '유튜브 연결을 취소했어요' : '유튜브 연결에 실패했어요')
     setYtId(id!)
     setYtLoading(true)
@@ -376,38 +364,6 @@ export default function PlannerApp() {
       })
       .catch((e: Error) => { stopScan(); navigate('/start', { replace: true }); setYtError(e.message) })
       .finally(() => setYtLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // 소셜 로그인에서 돌아왔을 때(?login_token=) 또는 새로고침 시 저장해둔 토큰으로 로그인 상태 복원
-  const loginHandled = useRef(false)
-  useEffect(() => {
-    if (loginHandled.current) return
-    loginHandled.current = true
-    const fresh = entry.loginToken, err = entry.loginError
-    if (err) {
-      // 'cancelled'·'access_denied'는 카카오가 주는 짧은 코드, 그 외엔 백엔드가 보낸 실제 에러 문장
-      const known: Record<string, string> = { cancelled: '카카오 로그인을 취소했어요.', access_denied: '카카오 로그인을 취소했어요.' }
-      setLoginError(known[err] || err)
-      return
-    }
-    const token = fresh || store.loginToken.get()
-    if (!token) return
-    fetchMe(token)
-      .then((me) => {
-        store.loginToken.set(token)
-        store.lastProvider.set(me.provider)
-        setAuth({ user: { name: me.nickname || '게스트', email: me.email || '', avatar: me.avatar_url }, token, error: '' })
-      })
-      .catch((e: AuthFailure) => {
-        // 토큰이 만료·폐기됐을 때(401·404)만 지운다.
-        // 서버가 꺼져 있거나 네트워크가 끊긴 것뿐인데 지우면 멀쩡한 로그인이 날아간다
-        if (e.status === 401 || e.status === 403 || e.status === 404) {
-          store.loginToken.set(null)
-          setAuth({ token: null }) // 상태에서도 빼야 로그인 화면이 다시 나온다
-        }
-        if (fresh) setLoginError('로그인 확인에 실패했어요. 다시 시도해 주세요.') // 방금 막 돌아왔는데 토큰이 안 먹히면 서버 쪽 문제
-      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -486,13 +442,11 @@ export default function PlannerApp() {
   }
   const startOver = () => { restart(); navigate('/start') }
 
-  // 로그아웃 — 분석 상태를 되돌리고 토큰·유튜브 연동까지 끊는다.
-  // 화면 안의 '뒤로/처음으로' 버튼이 이걸 부르면 안 된다 (멀쩡한 로그인이 풀린다)
+  // 로그아웃 — 분석 상태를 되돌리고 토큰·유튜브 연동까지 끊는다. 마이페이지에서만 부른다
   const logout = () => {
     restart()
-    store.loginToken.set(null)
     setYtId(null) // 로그아웃하면 유튜브 연동도 함께 끊는다
-    setAuthState({ mode: 'login', name: '', email: '', pw: '', error: '', user: null, token: null, skipped: false })
+    signOut()
   }
 
   // 이메일·비밀번호 로그인은 아직 구현 전이라 AuthScreen의 폼과 함께 임시로 주석 처리
@@ -562,7 +516,7 @@ export default function PlannerApp() {
   if (entryTarget && location.search) return <Navigate to={entryTarget} replace />
   if (loginError) {
     return (
-      <LoginErrorScreen message={loginError} goHome={() => { setLoginError(null); navigate('/') }} />
+      <LoginErrorScreen message={loginError} goHome={() => { clearLoginError(); navigate('/') }} />
     )
   }
   if (splash) {
@@ -576,16 +530,7 @@ export default function PlannerApp() {
         avatar={auth.user?.avatar || null}
         savedCourses={savedCourses}
         tab={homeTab}
-        onRename={async (nickname, avatar) => {
-          if (!auth.token) return '로그인이 필요해요'
-          try {
-            const me = await updateMe(auth.token, nickname, avatar)
-            setAuth({ user: { name: me.nickname || '게스트', email: me.email || '', avatar: me.avatar_url } })
-            return null
-          } catch (e) {
-            return (e as Error).message
-          }
-        }}
+        onRename={rename}
         // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
         onLogout={() => { logout(); navigate('/') }}
         // 로그인만 하러 감 — 끝나면 홈으로
