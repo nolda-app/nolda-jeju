@@ -15,8 +15,14 @@ const FLICK_MS = 250
 const EDGE_RESIST = 0.3 // 첫/마지막 장소에서 더 밀 때 끌려오는 비율
 
 const shortAddr = (addr: string) => addr.replace(/^제주(특별자치도)?\s*/, '')
-// 저장된 업체 URL이 없어서 이름+동네로 네이버 지도 검색 결과로 보냄 (이름이 대부분 고유해서 상위 결과가 그 업체)
-const naverMapSearchUrl = (name: string, area: string) => `https://map.naver.com/p/search/${encodeURIComponent(`${name} ${area}`)}`
+// 저장된 업체 URL이 없어서 '이름 + 시'로 네이버 지도 검색 결과로 보냄 (이름이 대부분 고유해서 상위 결과가 그 업체).
+// 코스 동네 이름('제주시내'·'월정' 등)은 앱이 정한 이름이라 네이버 검색어로 붙이면 업체를 못 찾는다 → 주소의 행정구역을 쓴다.
+// 이름의 '& …'·괄호는 비짓제주가 붙인 부가 설명이라 뗀다 (예: '천제연폭포 & 제주4.3중문면희생자위령비')
+const naverMapSearchUrl = (name: string, addr?: string) => {
+  const core = name.split(/\s*&\s*/)[0].replace(/\s*[(（[].*?[)）\]]\s*/g, ' ').trim()
+  const city = addr?.match(/(제주시|서귀포시)/)?.[1] ?? '제주'
+  return `https://map.naver.com/p/search/${encodeURIComponent(`${core} ${city}`)}`
+}
 
 function Slide({ course, item, detail }: { course: BuiltCourse; item: BuiltCourse['items'][number]; detail?: PlaceDetail }) {
   const info = placeInfo(item.pid)
@@ -45,7 +51,7 @@ function Slide({ course, item, detail }: { course: BuiltCourse; item: BuiltCours
       {detail?.business_hours && <div className="pl-preview-addr">{detail.business_hours}</div>}
       {detail?.menu_summary && <div className="pl-preview-addr">{detail.menu_summary}</div>}
       {detail?.phone && <div className="pl-preview-addr">{detail.phone}</div>}
-      <a className="pl-preview-link" href={naverMapSearchUrl(item.name, course.area)} target="_blank" rel="noopener noreferrer">
+      <a className="pl-preview-link" href={naverMapSearchUrl(item.name, info?.addr)} target="_blank" rel="noopener noreferrer">
         링크 바로가기 ›
       </a>
     </div>
