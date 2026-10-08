@@ -5,12 +5,9 @@ import SplashScreen from './SplashScreen'
 import ShareSheet from './ShareSheet'
 import LiveCourse from './LiveCourse'
 import { loadPlaces } from './geo'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { deleteSavedCourse, fetchAiCourses, fetchCourse, fetchSavedCourses, putSavedCourse } from './api'
-import { COND, COURSES, DEFAULT_COND } from './data'
-import type { Course } from './data'
-import { build, matchCond } from './logic'
+import { COND } from './data'
 import type { BuiltCourse } from './logic'
 import { store } from '../app/storage'
 import { AuthScreen, LoginErrorScreen } from '../auth/AuthScreen'
@@ -19,14 +16,14 @@ import { DataSourceScreen } from '../taste/DataSourceScreen'
 import { ScanningScreen } from '../taste/ScanningScreen'
 import { SummaryScreen } from '../taste/SummaryScreen'
 import { useTasteScan } from '../taste/useTasteScan'
+import { useCourses } from '../courses/useCourses'
+import type { CoursesSnapshot } from '../courses/useCourses'
 import type { TasteSnapshot } from '../taste/useTasteScan'
 import { SearchTab } from '../courses/SearchTab'
-import type { AiState } from '../courses/SearchTab'
 import { SavedTab } from '../courses/SavedTab'
 import { CourseModal } from '../courses/CourseModal'
 import './planner.css'
 
-const AI_IDLE: AiState = { status: 'idle', ids: [], error: '' }
 const MODAL_CLOSE_MS = 280 // planner.css pl-sheet-down 길이와 맞춤
 
 /*
@@ -54,11 +51,8 @@ const afterLoginPath = () => {
 }
 
 /** 새로고침 대비 세션에 남기는 값 — 분석 결과 + 코스 조건·목록 */
-export interface Session extends TasteSnapshot {
-  cond: typeof DEFAULT_COND
+export interface Session extends TasteSnapshot, CoursesSnapshot {
   done: boolean
-  aiIds: string[]
-  pool: Course[]
 }
 const readSession = (): Partial<Session> => store.session.get() ?? {}
 
@@ -76,16 +70,12 @@ export default function PlannerApp() {
   const homeTab = (Object.keys(HOME_PATH) as (keyof typeof HOME_PATH)[]).find((k) => HOME_PATH[k] === path) || null
 
   const { auth, setAuth, authed, loginError, clearLoginError, restore: restoreAuth, logout: signOut, rename } = useAuth(entry)
-  const [cond, setCond] = useState(snap.cond ?? { ...DEFAULT_COND })
   const scan = useTasteScan({
     entry, snap, auth, restoreAuth,
-    // 분석에서 나온 인원·예산을 코스 조건에 반영
-    onReport: (a) => setCond((c) => ({ ...c, people: a.party, budget: a.budgetBand })),
+    // 분석에서 나온 인원·예산을 코스 조건에 반영. courses는 아래에서 만들지만, 이 콜백은 분석이 끝날 때에야 불린다
+    onReport: (a) => courses.applyReport(a),
   })
   const [sheetKey, setSheetKey] = useState<string | null>(null)
-  // 저장한 코스: 이 기기(localStorage)에 보관하고, 로그인했으면 DB(saved_courses)와도 맞춤
-  const [savedInit] = useState<Course[]>(() => store.savedCourses.get() ?? [])
-  const [saved, setSaved] = useState<string[]>(() => savedInit.map((c) => c.id))
   const [toast, setToast] = useState('')
   const toastTimer = useRef<number | null>(null)
   const showToast = (msg: string) => {
@@ -93,15 +83,12 @@ export default function PlannerApp() {
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = window.setTimeout(() => setToast(''), 2200)
   }
-  const [booked, setBooked] = useState<string[]>([])
+  const courses = useCourses({ snap, token: auth.token, taste: scan, toast: showToast })
+  const { cond, setCond } = courses
   // 앱 실행 직후 로고 — 홈으로 처음 들어왔을 때만 (다른 경로·리디렉션 복귀·새로고침은 건너뜀)
   const [splash, setSplash] = useState(() => !window.location.search && window.location.pathname === '/' && !store.splashed.get())
   // 분석을 끝냈거나 건너뛰어 코스 화면까지 간 적이 있는지 — 홈 '코스' 탭이 분석부터일지 목록일지 정한다
   const [done, setDone] = useState(!!snap.done)
-  const [ai, setAi] = useState<AiState>(() => (snap.aiIds?.length ? { status: 'done', ids: snap.aiIds, error: '' } : AI_IDLE))
-  // 받은 AI 코스는 계속 보관 — 다시 만들어도 저장한 코스가 사라지지 않게
-  const [aiPool, setAiPool] = useState<Record<string, Course>>(() => Object.fromEntries([...savedInit, ...(snap.pool ?? [])].map((c) => [c.id, c])))
-  const aiAbort = useRef<AbortController | null>(null)
   const [modalClosing, setModalClosing] = useState(false)
   const closeTimer = useRef<number | null>(null)
 
@@ -138,66 +125,22 @@ export default function PlannerApp() {
   // 코스 화면까지 오면 분석을 끝낸 것으로 친다 (주소로 바로 들어온 경우 포함)
   useEffect(() => { if (tab && authed) setDone(true) }, [tab, authed])
 
-  // 저장한 코스 목록 — 이 기기에 기록하고 홈 '저장' 탭에도 보여준다
-  const savedCourses = useMemo(
-    () => saved.map((id) => aiPool[id] || COURSES.find((c) => c.id === id)).filter(Boolean) as Course[],
-    [saved, aiPool],
-  )
-  useEffect(() => {
-    store.savedCourses.set(savedCourses)
-  }, [savedCourses])
-
   // 분석 결과·코스 목록을 세션에 남겨서 새로고침해도 같은 화면을 이어 그린다
   useEffect(() => {
-    const aiIds = ai.status === 'done' ? ai.ids : []
-    const s: Session = {
-      ...scan.snapshot, cond, done,
-      aiIds, pool: aiIds.map((id) => aiPool[id]).filter(Boolean),
-    }
+    const s: Session = { ...scan.snapshot, ...courses.snapshot, done }
     store.session.set(s)
   })
-
-  // 로그인하면 DB에 저장해 둔 코스를 가져와 합침
-  useEffect(() => {
-    if (!auth.token) return
-    fetchSavedCourses(auth.token)
-      .then((list) => {
-        setAiPool((p) => ({ ...p, ...Object.fromEntries(list.map((c) => [c.id, c])) }))
-        setSaved((s) => [...s, ...list.map((c) => c.id).filter((id) => !s.includes(id))])
-      })
-      .catch((e: Error) => console.error('[saved]', e.message))
-  }, [auth.token])
 
   // 장소 데이터(Supabase)를 앱 시작 때 받아 둠 — 받은 뒤 한 번 다시 그려서 지도 핀·장소 정보가 보이게
   const [, setPlacesReady] = useState(false)
   useEffect(() => {
     loadPlaces().then(() => setPlacesReady(true)).catch((e: Error) => console.error('[places]', e.message))
   }, [])
-  const generateAi = () => {
-    aiAbort.current?.abort()
-    const ctrl = new AbortController()
-    aiAbort.current = ctrl
-    setAi((s) => ({ ...s, status: 'loading', error: '' }))
-    fetchAiCourses(
-      { taste: scan.effTaste, tags: scan.effTags, intent: scan.intent, picked: scan.picked, cond, time_window: { start: scan.range[0], end: scan.range[1] } },
-      ctrl.signal,
-    )
-      .then((list) => {
-        setAiPool((p) => ({ ...p, ...Object.fromEntries(list.map((c) => [c.id, c])) }))
-        setAi({ status: 'done', ids: list.map((c) => c.id), error: '' })
-      })
-      .catch((e: Error) => {
-        if (!ctrl.signal.aborted) setAi((s) => ({ ...s, status: 'error', error: e.message }))
-      })
-  }
-  const resetAi = () => { aiAbort.current?.abort(); setAi(AI_IDLE) }
-
   // 코스 목록이 보이면 AI 코스 생성 (실패해도 고정 코스는 그대로 보임 · 새로고침이면 세션에 남은 목록을 그대로 씀)
   useEffect(() => {
-    if (tab === 'search' && authed && ai.status === 'idle') generateAi()
+    if (tab === 'search' && authed && courses.ai.status === 'idle') courses.generateAi()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, authed, ai.status])
-  useEffect(() => () => aiAbort.current?.abort(), [])
+  }, [tab, authed, courses.ai.status])
 
   const skipScan = () => {
     scan.skip(); setDone(true)
@@ -206,7 +149,8 @@ export default function PlannerApp() {
   // 분석을 처음부터 다시 — 로그인은 건드리지 않는다. 화면 이동은 부르는 쪽이 정한다
   const restart = () => {
     scan.reset()
-    setDone(false); setCond({ ...DEFAULT_COND }); setSheetKey(null); resetAi()
+    courses.reset()
+    setDone(false); setSheetKey(null)
   }
   const startOver = () => { restart(); navigate('/start') }
 
@@ -224,27 +168,13 @@ export default function PlannerApp() {
   //   setAuth({ user: { name: auth.name || auth.email.split('@')[0], email: auth.email }, error: '', pw: '' })
   // }
 
-  // 받은 AI 코스 전체 + 고정 코스 (저장 탭·상세 열기용 + AI 실패 시 fallback)
-  const builtAll: BuiltCourse[] = useMemo(
-    () => [...Object.values(aiPool), ...COURSES].map((c) => build(c, { taste: scan.effTaste, tags: scan.effTags, intent: scan.intent, people: cond.people, booked })),
-    [aiPool, scan.effTaste, scan.effTags, scan.intent, cond.people, booked],
-  )
-  const fixedIds = useMemo(() => new Set(COURSES.map((c) => c.id)), [])
-  // 검색 목록: 이번에 만든 AI 코스 (AI가 실패했으면 화면이 완전히 비어 보이지 않게 고정 코스로 대체)
-  const built: BuiltCourse[] = useMemo(() => {
-    if (ai.status === 'error' || ai.status === 'loading') return builtAll.filter((c) => fixedIds.has(c.id))
-    return ai.ids.map((id) => builtAll.find((c) => c.id === id)).filter(Boolean) as BuiltCourse[]
-  }, [builtAll, ai.ids, ai.status, fixedIds])
-  const filtered = built.filter((c) => matchCond(c, cond))
-  const openCourse = builtAll.find((c) => c.id === openId) || null
-  const liveCourse = builtAll.find((c) => c.id === liveId) || null
-
+  const openCourse = courses.byId(openId)
+  const liveCourse = courses.byId(liveId)
   // 가진 적 없는 코스 주소(공유 링크·새로고침)면 서버에서 받아온다
   useEffect(() => {
     if (!openId || openCourse) return
     let alive = true
-    fetchCourse(openId)
-      .then((c) => { if (alive) setAiPool((p) => ({ ...p, [c.id]: c })) })
+    courses.fetchMissing(openId)
       .catch((e: Error) => {
         if (!alive) return
         showToast(`코스를 열지 못했어요 · ${e.message}`)
@@ -254,23 +184,13 @@ export default function PlannerApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId])
 
-  const toggleSave = (id: string) => {
-    const on = saved.indexOf(id) < 0
-    setSaved((s) => (on ? s.concat([id]) : s.filter((x) => x !== id)))
-    showToast(on ? '저장한 코스에 담았어요' : '저장을 취소했어요')
-    const course = aiPool[id]
-    if (auth.token && course?.shareable) {
-      (on ? putSavedCourse(auth.token, id) : deleteSavedCourse(auth.token, id))
-        .catch((e: Error) => console.error('[saved]', e.message)) // 서버 저장이 안 돼도 이 기기엔 남아 있음
-    }
-  }
   // 공유 창 (카카오톡·문자·링크 복사·더보기)
   const [shareOf, setShareOf] = useState<BuiltCourse | null>(null)
   const share = (c: BuiltCourse) => setShareOf(c)
   const shareEl = shareOf && (
     <ShareSheet
       course={shareOf}
-      url={aiPool[shareOf.id]?.shareable ? `${window.location.origin}/course/${encodeURIComponent(shareOf.id)}` : ''}
+      url={courses.shareUrl(shareOf.id)}
       onClose={() => setShareOf(null)}
       toast={showToast}
     />
@@ -295,7 +215,7 @@ export default function PlannerApp() {
         authed={authed}
         userName={auth.user?.name || ''}
         avatar={auth.user?.avatar || null}
-        savedCourses={savedCourses}
+        savedCourses={courses.savedCourses}
         tab={homeTab}
         onRename={rename}
         // logout이 토큰·유튜브 연동·분석 상태를 모두 되돌린다. 화면만 홈으로 붙잡아 둔다
@@ -373,23 +293,23 @@ export default function PlannerApp() {
       {tab === 'search' && (
         <SearchTab
           cond={cond} setCond={setCond} sheet={sheet} setSheetKey={setSheetKey}
-          built={built} filtered={filtered} taste={scan.effTaste} tags={scan.effTags} restart={startOver}
-          openCourse={openCourseFrom} ai={ai} generateAi={generateAi}
+          built={courses.built} filtered={courses.filtered} taste={scan.effTaste} tags={scan.effTags} restart={startOver}
+          openCourse={openCourseFrom} ai={courses.ai} generateAi={courses.generateAi}
         />
       )}
       {tab === 'saved' && (
         <SavedTab
-          savedBuilt={saved.map((id) => builtAll.find((c) => c.id === id)).filter(Boolean) as BuiltCourse[]}
+          savedBuilt={courses.savedBuilt}
           people={cond.people}
           openCourse={openCourseFrom}
-          remove={(id) => toggleSave(id)}
+          remove={courses.toggleSave}
           goSearch={() => navigate('/courses')}
         />
       )}
       {tab && (
         <BottomTabs
           active={tab === 'saved' ? 'saved' : 'course'}
-          savedCount={saved.length}
+          savedCount={courses.saved.length}
           onSelect={(t) => {
             // '저장'과 '코스'는 이 화면 안에서 오가고, 나머지는 홈의 해당 탭으로
             if (t === 'saved') return navigate('/saved')
@@ -401,10 +321,10 @@ export default function PlannerApp() {
       {openCourse ? (
         <CourseModal
           course={openCourse}
-          isSaved={saved.indexOf(openCourse.id) > -1}
-          booked={booked}
-          toggleBook={(key) => setBooked((b) => (b.indexOf(key) > -1 ? b.filter((x) => x !== key) : b.concat([key])))}
-          toggleSave={() => toggleSave(openCourse.id)}
+          isSaved={courses.isSaved(openCourse.id)}
+          booked={courses.booked}
+          toggleBook={courses.toggleBook}
+          toggleSave={() => courses.toggleSave(openCourse.id)}
           start={() => navigate(`/course/${encodeURIComponent(openCourse.id)}/live`, { state: location.state })}
           share={() => share(openCourse)}
           close={closeModal}
@@ -416,8 +336,8 @@ export default function PlannerApp() {
       {liveCourse && (
         <LiveCourse
           course={liveCourse}
-          isSaved={saved.indexOf(liveCourse.id) > -1}
-          toggleSave={() => toggleSave(liveCourse.id)}
+          isSaved={courses.isSaved(liveCourse.id)}
+          toggleSave={() => courses.toggleSave(liveCourse.id)}
           onClose={() => back(`/course/${encodeURIComponent(liveCourse.id)}`)}
         />
       )}

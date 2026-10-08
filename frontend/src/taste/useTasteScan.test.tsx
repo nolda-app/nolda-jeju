@@ -1,5 +1,6 @@
 // 취향 분석 흐름 — 데이터 고르기 → 분석 → 결과, 취소·실패 처리
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,7 +16,11 @@ vi.mock('../planner/photoMeta', () => ({
 }))
 
 let path = ''
-function Probe() { path = useLocation().pathname; return null }
+function Probe() {
+  const now = useLocation().pathname
+  useEffect(() => { path = now })
+  return null
+}
 const wrapper = ({ children }: { children: ReactNode }) => (
   <MemoryRouter initialEntries={['/start']}>{children}<Probe /></MemoryRouter>
 )
