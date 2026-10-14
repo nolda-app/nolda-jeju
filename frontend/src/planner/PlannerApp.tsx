@@ -2,10 +2,8 @@ import HomeScreen from './HomeScreen'
 import BottomTabs from './BottomTabs'
 import type { HomeTab } from './BottomTabs'
 import SplashScreen from './SplashScreen'
-import ShareSheet from './ShareSheet'
-import LiveCourse from './LiveCourse'
 import { loadPlaces } from './geo'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { COND } from './data'
 import type { BuiltCourse } from './logic'
@@ -14,17 +12,21 @@ import { AuthScreen, LoginErrorScreen } from '../auth/AuthScreen'
 import { useAuth } from '../auth/useAuth'
 import { RequireAuth } from '../auth/RequireAuth'
 import { afterLoginPath, rememberAfterLogin } from '../auth/afterLogin'
-import { DataSourceScreen } from '../taste/DataSourceScreen'
-import { ScanningScreen } from '../taste/ScanningScreen'
-import { SummaryScreen } from '../taste/SummaryScreen'
 import { useTasteScan } from '../taste/useTasteScan'
 import { useCourses } from '../courses/useCourses'
 import type { CoursesSnapshot } from '../courses/useCourses'
 import type { TasteSnapshot } from '../taste/useTasteScan'
-import { SearchTab } from '../courses/SearchTab'
-import { SavedTab } from '../courses/SavedTab'
-import { CourseModal } from '../courses/CourseModal'
 import './planner.css'
+
+// 홈 첫 화면에 필요 없는 화면은 들어갈 때 받는다 (첫 로딩 번들을 줄임)
+const ShareSheet = lazy(() => import('./ShareSheet'))
+const LiveCourse = lazy(() => import('./LiveCourse'))
+const DataSourceScreen = lazy(() => import('../taste/DataSourceScreen').then((m) => ({ default: m.DataSourceScreen })))
+const ScanningScreen = lazy(() => import('../taste/ScanningScreen').then((m) => ({ default: m.ScanningScreen })))
+const SummaryScreen = lazy(() => import('../taste/SummaryScreen').then((m) => ({ default: m.SummaryScreen })))
+const SearchTab = lazy(() => import('../courses/SearchTab').then((m) => ({ default: m.SearchTab })))
+const SavedTab = lazy(() => import('../courses/SavedTab').then((m) => ({ default: m.SavedTab })))
+const CourseModal = lazy(() => import('../courses/CourseModal').then((m) => ({ default: m.CourseModal })))
 
 const MODAL_CLOSE_MS = 280 // planner.css pl-sheet-down 길이와 맞춤
 
@@ -262,6 +264,7 @@ export default function PlannerApp() {
           }}
         />
       )}
+      <Suspense fallback={null}>
       {openCourse ? (
         <CourseModal
           course={openCourse}
@@ -286,12 +289,14 @@ export default function PlannerApp() {
         />
       )}
       {shareEl}
+      </Suspense>
       {toastEl}
     </div>
   )
 
   // 경로 = 화면 (맨 위 주석의 경로 표와 같다)
   return (
+    <Suspense fallback={null}>
     <Routes>
       {Object.values(HOME_PATH).map((p) => <Route key={p} path={p} element={home} />)}
       {/* 이미 로그인했으면(게스트로 둘러보기 포함) 로그인하러 오기 전에 가려던 곳으로 */}
@@ -336,5 +341,6 @@ export default function PlannerApp() {
       {/* 모르는 주소는 홈으로 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }

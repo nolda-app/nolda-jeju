@@ -1,6 +1,5 @@
 // 고른 사진 → 백엔드로 보낼 최소한의 데이터 (촬영 시각 · 좌표 · 512px로 줄인 이미지)
 // 원본은 보내지 않는다. 줄인 이미지는 취향 분석 1회에만 쓰고 서버에 저장하지 않음.
-import exifr from 'exifr'
 
 export interface PhotoMeta {
   ts: string | null
@@ -51,6 +50,7 @@ export async function keepReadable(files: File[]): Promise<{ ok: File[]; bad: Fi
 
 /** EXIF 촬영 시각·GPS를 읽고 이미지를 줄인다. 한 장이 실패해도 나머지는 계속 */
 export async function readPhotos(files: File[]): Promise<PhotoMeta[]> {
+  const { default: exifr } = await import('exifr') // 사진을 고를 때만 받는다
   const out = await Promise.all(
     thin(files).map(async (f): Promise<PhotoMeta | null> => {
       try {
