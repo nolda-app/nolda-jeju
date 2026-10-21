@@ -5,7 +5,7 @@ load_places_csv: 원본 CSV(data/places_jeju.csv + data/geocode_cache.json)에�
 """
 import csv, html, json, math
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 
 from scripts.build_places_geo import CACHE, SRC, address_queries, classify, norm, usable
@@ -57,12 +57,23 @@ def image_urls() -> dict[str, str]:
 POPULARITY_CSV = Path(__file__).parent / "data" / "place_popularity.csv"
 
 
+def this_month() -> int:
+    return datetime.now(timezone(timedelta(hours=9))).month
+
+
 @lru_cache(maxsize=1)
-def popularity() -> dict[str, float]:
+def popularity() -> dict[str, dict]:
+    """id → {pop: 이번 달 백분위(그 달 자료가 없으면 연간), pop_month: 쓴 달(연간이면 None), local: 도민 도착 비율 또는 None}
+    ponytail: 서버가 켜질 때의 달로 고정 — Render 무료 서버는 자주 재시작돼서 충분, 오래 켜 두는 환경이면 달마다 캐시 비우기"""
     if not POPULARITY_CSV.exists():
         return {}
+    col = f"m{this_month():02d}"
     with open(POPULARITY_CSV, encoding="utf-8-sig", newline="") as f:
-        return {r["pid"]: float(r["pop"]) for r in csv.DictReader(f)}
+        return {r["pid"]: {
+            "pop": float(r.get(col) or r["pop"]),
+            "pop_month": this_month() if r.get(col) else None,
+            "local": float(r["local_ratio"]) if r.get("local_ratio") else None,
+        } for r in csv.DictReader(f)}
 
 
 @lru_cache(maxsize=1)
@@ -97,7 +108,8 @@ def load_places() -> tuple[dict, ...]:
         "lat": float(r["lat"]), "lng": float(r["lng"]), "kind": r["kind"],
         "area": r["area"], "tags": r["tags"] or [], "hours": r["business_hours"], "price": r["price_per_person"],
         "img": r.get("image_url") or image_urls().get(r["id"]),
-        "pop": popularity().get(r["id"], 0.0),
+        "pop": popularity().get(r["id"], {}).get("pop", 0.0),
+        "local": popularity().get(r["id"], {}).get("local"),
     } for r in rows if r["lat"] is not None and r["lng"] is not None and r["kind"])
 
 
@@ -148,10 +160,11 @@ DETAIL_FIELDS = "id,phone,business_hours,menu_summary,price_per_person,image_url
 
 
 def place_details(ids: list[str]) -> dict[str, dict]:
-    """places 테이블(scripts/places_table.sql)에서 전화/영업시간/가격/대표사진 조회 — id 기준, 없는 곳은 결과에서 빠짐"""
+    """places 테이블(scripts/places_table.sql)에서 전화/영업시간/가격/대표사진 조회 — id 기준, 없는 곳은 결과에서 빠짐.
+    제주관광빅데이터 인기도(pop·pop_month·local)도 붙인다 — 화면에 근거로 보여줌"""
     if not ids:
         return {}
     from db import get_client
 
     res = get_client().table("places").select(DETAIL_FIELDS).in_("id", ids).execute()
-    return {r["id"]: r for r in res.data}
+    return {r["id"]: {**r, **popularity().get(r["id"], {})} for r in res.data}

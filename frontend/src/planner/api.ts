@@ -218,6 +218,20 @@ export interface PlaceDetail {
   menu_summary: string | null
   price_per_person: number | null
   image_url: string | null
+  // 제주관광빅데이터 '지역별 인기 장소'(Tmap 내비 도착) — 매칭된 곳만
+  pop?: number // 관광객 도착 백분위 0~1 (1이 가장 많음)
+  pop_month?: number | null // pop이 몇 월 기준인지 (그 달 자료가 없어 연간이면 null)
+  local?: number | null // 도민 도착 비율 0~1 (도착이 적으면 null)
+}
+
+/** 장소 미리보기에 붙이는 데이터 근거 한 줄 — 예: '10월 관광객 방문 상위 12% · 도민 방문 62%' (근거가 없으면 null) */
+export function popFact(d?: PlaceDetail | null): string | null {
+  if (!d) return null
+  const parts = [
+    d.pop ? `${d.pop_month ? `${d.pop_month}월 ` : ''}관광객 방문 상위 ${Math.max(1, Math.ceil((1 - d.pop) * 100))}%` : null,
+    d.local != null ? `도민 방문 ${Math.round(d.local * 100)}%` : null,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
 }
 
 /** 백엔드 PATCH /auth/me — 마이페이지 프로필(이름·사진) 저장.

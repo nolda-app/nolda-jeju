@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import KindThumb from './KindThumb'
 import { placeInfo } from './geo'
-import { fetchPlaceDetails } from './api'
+import { fetchPlaceDetails, popFact } from './api'
 import type { PlaceDetail } from './api'
 import type { BuiltCourse } from './logic'
 
@@ -28,6 +28,7 @@ function Slide({ course, item, detail }: { course: BuiltCourse; item: BuiltCours
   const info = placeInfo(item.pid)
   const cost = item.cost + (course.estimated && item.cost !== '무료' ? ' (추정)' : '')
   const sub = [item.kind, info?.cat.split('>').pop()].filter(Boolean).join(' · ')
+  const fact = popFact(detail)
   return (
     <div className="pl-preview-slide">
       {detail?.image_url && <img className="pl-preview-photo" src={detail.image_url} alt="" />}
@@ -51,6 +52,7 @@ function Slide({ course, item, detail }: { course: BuiltCourse; item: BuiltCours
       {detail?.business_hours && <div className="pl-preview-addr">{detail.business_hours}</div>}
       {detail?.menu_summary && <div className="pl-preview-addr">{detail.menu_summary}</div>}
       {detail?.phone && <div className="pl-preview-addr">{detail.phone}</div>}
+      {fact && <div className="pl-preview-addr">{fact} (제주관광빅데이터)</div>}
       <a className="pl-preview-link" href={naverMapSearchUrl(item.name, info?.addr)} target="_blank" rel="noopener noreferrer">
         링크 바로가기 ›
       </a>

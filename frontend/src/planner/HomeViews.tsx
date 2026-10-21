@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import KindThumb from './KindThumb'
-import { fetchPlaceDetails } from './api'
+import { fetchPlaceDetails, popFact } from './api'
 import type { PlaceDetail } from './api'
 import type { Place } from './geo'
 import type { Course } from './data'
@@ -347,6 +347,7 @@ export function PlaceSheet({ p, onClose }: { p: Place; onClose: () => void }) {
     detail?.phone && { l: '전화', v: detail.phone },
     detail?.menu_summary && { l: '메뉴', v: detail.menu_summary },
     detail?.price_per_person && { l: '1인 예상', v: `${detail.price_per_person.toLocaleString()}원` },
+    popFact(detail) && { l: '방문 데이터', v: `${popFact(detail)} (제주관광빅데이터)` },
   ].filter(Boolean) as { l: string; v: string }[]
 
   return createPortal(

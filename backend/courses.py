@@ -258,6 +258,15 @@ def pop_label(p: dict) -> str:
     return "붐빔" if pop >= 0.8 else "보통" if pop >= 0.4 else "한적" if pop else "-"
 
 
+def local_label(p: dict) -> str:
+    return "-" if p.get("local") is None else f"{p['local']:.0%}"
+
+
+# '로컬' 관심사가 있으면 도민 도착 비율(제주관광빅데이터)이 높은 곳을 우선 — 도민 비율 50%면 인기도 0.5만큼 가산
+def local_weight(req: "CourseRequest | None") -> float:
+    return 1.0 if req and "로컬" in req.tags else 0.0
+
+
 def sample_candidates(areas: list[str], rng: random.Random, req: "CourseRequest | None" = None, exclude: set[str] | None = None) -> dict[str, dict]:
     """동네·종류별로 가까운 곳 위주로 뽑되 매번 조금씩 섞어 코스가 반복되지 않게.
     시간 창이 있으면 그 시간에 문 닫는 곳(영업시간을 아는 곳만)은 뺀다"""
@@ -276,8 +285,9 @@ def sample_candidates(areas: list[str], rng: random.Random, req: "CourseRequest 
             if w:
                 pool = [p for p in pool if is_open(p, wd, w.start * 60, w.end * 60)]
             # 가까운 곳들 안에서 인기도 취향에 맞는 쪽을 앞으로
-            near, wt = pool[: per_kind * 3], pop_weight(req)
-            pool = [p for _, p in sorted(enumerate(near), key=lambda x: x[0] / len(near) - wt * x[1].get("pop", 0))][: per_kind * 2]
+            near, wt, lw = pool[: per_kind * 3], pop_weight(req), local_weight(req)
+            pool = [p for _, p in sorted(enumerate(near), key=lambda x: x[0] / len(near) - wt * x[1].get("pop", 0)
+                                         - lw * (x[1].get("local") or 0))][: per_kind * 2]
             for p in rng.sample(pool, min(per_kind, len(pool))):
                 if p["id"] not in used:
                     used.add(p["id"])
@@ -312,7 +322,8 @@ def build_messages(req: CourseRequest, areas: list[str], refs: dict[str, dict], 
     ]
     places = [
         f"{ref} | {p['area']} | {p['kind']} | {p['name']} | {p['cat']} | {p['lat']:.4f},{p['lng']:.4f}"
-        f" | {','.join(p.get('tags') or []) or '-'} | {pop_label(p)} | {p.get('hours') or '-'} | {place_cost(p)}{'' if p.get('price') else '(추정)'}"
+        f" | {','.join(p.get('tags') or []) or '-'} | {pop_label(p)} | {local_label(p)}"
+        f" | {p.get('hours') or '-'} | {place_cost(p)}{'' if p.get('price') else '(추정)'}"
         for ref, p in refs.items()
     ]
     user = "\n".join([
@@ -321,7 +332,7 @@ def build_messages(req: CourseRequest, areas: list[str], refs: dict[str, dict], 
         "", "[조건]", *cond,
         "", f"[만들 코스] {len(areas)}개 — area 순서: {', '.join(areas)}",
         f"코스마다 items는 반드시 {lo}곳 이상 {hi}곳 이하 (이보다 적거나 많으면 버려진다). 장소가 모자라 보여도 다른 종류로 채운다.",
-        "", "[후보 장소] ref | 동네 | 종류 | 이름 | 업종 | 좌표 | 리뷰 태그 | 방문 인기(내비 도착 기준) | 영업시간 | 1인 가격(원)", *places,
+        "", "[후보 장소] ref | 동네 | 종류 | 이름 | 업종 | 좌표 | 리뷰 태그 | 이번 달 방문 인기(내비 도착 기준) | 도민 방문 비율 | 영업시간 | 1인 가격(원)", *places,
     ])
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
@@ -559,7 +570,7 @@ def rule_course(area: str, req: CourseRequest, rng: random.Random, avoid: set[st
     n = min(max(round(total / plan_of(req)[1]), lo), hi)
     by_kind = candidates_by_area(area)
     want_tags = set(COMPANION_TAGS.get(req.taste.companion or "", []) + CROWD_TAGS.get(req.taste.crowd or "", []))
-    wt = pop_weight(req)
+    wt, lw = pop_weight(req), local_weight(req)
     wd = today_weekday()
     budget = req.cond.budget
 
@@ -590,7 +601,7 @@ def rule_course(area: str, req: CourseRequest, rng: random.Random, avoid: set[st
                 if places and d > MAX_LEG_M:
                     continue
                 match = len(want_tags & set(p.get("tags") or []))
-                pool.append((d / 400 - match * 1.5 - wt * p.get("pop", 0) * 2 + rng.random() * 2, p))  # 가까움 + 태그 일치 + 인기도 취향 + 약간의 무작위
+                pool.append((d / 400 - match * 1.5 - wt * p.get("pop", 0) * 2 - lw * (p.get("local") or 0) * 2 + rng.random() * 2, p))  # 가까움 + 태그 일치 + 인기도·도민 비율 취향 + 약간의 무작위
             if pool:
                 picked = (kind, min(pool, key=lambda x: x[0])[1])
                 break
