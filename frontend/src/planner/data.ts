@@ -74,7 +74,7 @@ export interface Course {
 }
 
 export const COURSES: Course[] = [
-  { id: 'c1', title: '해장국 먹고 원도심 한 바퀴', area: '제주시내', tint: '#00A46E', start: 9,
+  { id: 'c1', title: '해장국 먹고 원도심 한 바퀴', area: '제주시내', tint: '#FF843A', start: 9,
     traits: { mood: 'food', crowd: 'mid', hour: 'morning', spend: 'meal', pace: 'low' }, tags: ['로컬', '기록'],
     why: '제주 사람들 아침인 고사리 해장국으로 시작해서, 조선시대 관아를 둘러보고 디저트로 마무리해요.',
     items: [{ k: '식사', n: '우진해장국', d: 50, c: 11000, note: '해장국 · 서사로 11 · 아침에도 줄이 있어요', pid: 'bff7211d-b360-52a0-8553-57183f1cccf5' },
@@ -92,7 +92,7 @@ export const COURSES: Course[] = [
     items: [{ k: '식사', n: '갈치바다 애월', d: 60, c: 25000, note: '갈치요리 · 애월로 15-1', pid: 'd321157c-13df-5f88-a6d5-9e0cae391c31' },
             { k: '산책', n: '한담해안산책로', d: 40, c: 0, note: '해안 산책로 · 애월~곽지 구간', pid: '3a65b08a-0290-53e3-8bd6-07797109cd1b' },
             { k: '카페', n: '해지개', d: 50, c: 9000, note: '오션뷰 카페 · 애월북서길 52', pid: '5c641efd-6b51-5fe6-919b-2c6b5063e916' }] },
-  { id: 'c4', title: '협재 바다 보고 칼국수', area: '협재', tint: '#00A46E', start: 11,
+  { id: 'c4', title: '협재 바다 보고 칼국수', area: '협재', tint: '#FF843A', start: 11,
     traits: { mood: 'calm', crowd: 'mid', hour: 'noon', spend: 'meal', pace: 'low' }, tags: ['자연', '사진'],
     why: '보말칼국수를 먹고 비양도가 보이는 협재 해변을 걸어요. 마지막은 해변 근처 카페에서 천천히.',
     items: [{ k: '식사', n: '협재칼국수', d: 50, c: 12000, note: '보말칼국수 · 협재로 3', pid: 'a6237d09-b5ec-57b0-8cf1-c72b092c9060' },
@@ -110,7 +110,7 @@ export const COURSES: Course[] = [
     items: [{ k: '체험', n: '월정퀵서프', d: 120, c: 50000, note: '서핑 강습 · 해맞이해안로 486 · 예약 확인', pid: '658e5366-4fd3-5c99-b4a9-3d5a2ebc9162' },
             { k: '식사', n: '월정타코마씸', d: 40, c: 13000, note: '흑돼지 타코 · 해맞이해안로 474', pid: '1ee1f381-72c7-5488-84c2-923a44666ae2' },
             { k: '카페', n: '모래비 커피로스터스 & 베이커리', d: 40, c: 7000, note: '로스터리 카페 · 해맞이해안로 462', pid: '7a677098-fc5c-546d-b698-bc739db8f8bc' }] },
-  { id: 'c7', title: '광치기해변에서 일출봉 바라보기', area: '성산', tint: '#00A46E', start: 10,
+  { id: 'c7', title: '광치기해변에서 일출봉 바라보기', area: '성산', tint: '#FF843A', start: 10,
     traits: { mood: 'calm', crowd: 'mid', hour: 'morning', spend: 'meal', pace: 'high' }, tags: ['자연', '사진'],
     why: '성산일출봉이 정면으로 보이는 광치기해변을 걷고, 고등어쌈밥을 먹은 뒤 카페에서 쉬어요.',
     items: [{ k: '산책', n: '광치기해변', d: 40, c: 0, note: '해변 · 썰물 때 이끼 바위가 드러나요', pid: 'f15cf5c7-6598-52d5-9758-91fa20e0e334' },
@@ -151,7 +151,7 @@ export const LEGS: Record<string, { m: string; t: number; d: string }[]> = {
 }
 
 export function moveTint(m: string) {
-  return m === '도보' ? '#00A46E' : m === '택시' ? '#C08A1E' : '#4A7FB5'
+  return m === '도보' ? '#FF843A' : m === '택시' ? '#C08A1E' : '#4A7FB5'
 }
 
 export function hhmm(m: number) {
@@ -177,4 +177,4 @@ export function label(opts: { v: string | number; l: string }[], v: string | num
 }
 
 /** 브랜드 초록 */
-export const GREEN = '#00A46E'
+export const ORANGE = '#FF843A'

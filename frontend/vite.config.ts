@@ -25,7 +25,7 @@ export default defineConfig({
         name: 'NOLDA',
         short_name: 'NOLDA',
         description: '오늘, 혼자서도 완벽하게 채워지는 하루 — AI 여가 코스 설계',
-        theme_color: '#00a46e',
+        theme_color: '#FF843A',
         background_color: '#faf8f3',
         display: 'standalone',
         icons: [
