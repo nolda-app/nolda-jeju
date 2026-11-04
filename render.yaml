@@ -12,12 +12,12 @@ services:
         value: 3.11.9
 
       - key: FRONTEND_URL
-        value: https://frontend-sigma-one-39.vercel.app
+        value: https://nolda-jeju.vercel.app
       - key: CORS_ORIGINS
-        value: https://frontend-sigma-one-39.vercel.app
-      # Vercel 프리뷰 배포(frontend-<hash>-esomnmm-8631s-projects.vercel.app)도 허용
+        value: https://nolda-jeju.vercel.app,https://frontend-sigma-one-39.vercel.app
+      # Vercel 프리뷰 배포도 허용
       - key: CORS_ORIGIN_REGEX
-        value: https://frontend-[a-z0-9]+-esomnmm-8631s-projects\.vercel\.app
+        value: https://(nolda-jeju|frontend-[a-z0-9]+-esomnmm-8631s-projects)\.vercel\.app
 
       # 카카오/구글 개발자 콘솔의 리디렉션 URI도 아래와 동일하게 등록해야 함
       - key: KAKAO_REDIRECT_URI
