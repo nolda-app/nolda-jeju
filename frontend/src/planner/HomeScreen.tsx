@@ -317,7 +317,7 @@ export default function HomeScreen({ authed, userName, avatar, savedCourses, tab
       {/* 홈은 사진 위에 로고·알림을 겹쳐 두고, 내려가면 배경이 깔리며 상단에 붙는다 */}
       {home ? (
         <div className={'pl-topbar' + (solid ? ' solid' : '')}>
-          <div className="pl-topbar-logo">NOLDA</div>
+          <div className="pl-topbar-logo">NOLDA<span className="pl-topbar-sub">in Jeju</span></div>
           {!authed && <button type="button" className="pl-topbar-login" onClick={onLogin}>로그인</button>}
           <button type="button" className="pl-topbar-bell" onClick={soon} aria-label="알림">
             <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>

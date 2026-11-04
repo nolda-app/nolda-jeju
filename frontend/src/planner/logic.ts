@@ -210,8 +210,8 @@ export function build(
     totalNote: people > 1 ? people + '명 기준 · 1인 ' + won(total) + ' · 이동 시간 포함' : '1인 기준 · 이동 시간 포함',
     matchLabel: '취향 ' + score + '%',
     tint: c.tint,
-    tintBg: strong ? '#E4F4EC' : 'rgba(20,24,33,.05)',
-    tintFg: strong ? '#00734F' : 'rgba(20,24,33,.55)',
+    tintBg: strong ? '#FFEEE2' : 'rgba(20,24,33,.05)',
+    tintFg: strong ? '#B8480C' : 'rgba(20,24,33,.55)',
   }
 }
 

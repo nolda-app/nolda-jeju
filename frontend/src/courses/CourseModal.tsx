@@ -6,7 +6,7 @@ import { fetchPlaceDetails } from '../planner/api'
 import type { PlaceDetail } from '../planner/api'
 import { loadPlaces, placeGeo } from '../planner/geo'
 import { useWalkLegs } from '../planner/useWalkLegs'
-import { GREEN } from '../planner/data'
+import { ORANGE } from '../planner/data'
 import type { BuiltCourse } from '../planner/logic'
 
 /* ── 코스 상세 모달 (타임라인 + 이동 동선) ─────────────────── */
@@ -49,7 +49,7 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
           {course.estimated && (
             <div style={{ marginTop: 6, font: '500 11.5px/1.5 var(--font)', color: 'var(--ink-45)' }}>AI가 만든 코스예요 · 체류 시간·가격은 추정값이에요</div>
           )}
-          <div style={{ marginTop: 10, display: 'inline-block', padding: '6px 11px', borderRadius: 99, background: 'var(--green-soft)', font: '600 11.5px/1 var(--font)', color: 'var(--green-deep)' }}>{course.moveLine} · 총 {course.dur}</div>
+          <div style={{ marginTop: 10, display: 'inline-block', padding: '6px 11px', borderRadius: 99, background: 'var(--orange-soft)', font: '600 11.5px/1 var(--font)', color: 'var(--orange-deep)' }}>{course.moveLine} · 총 {course.dur}</div>
         </div>
         <div className="pl-scroll" style={{ padding: '6px 22px 20px', borderTop: '1px solid var(--ink-06)' }}>
           <RouteMap course={course} />
@@ -98,7 +98,7 @@ export function CourseModal({ course, isSaved, booked, toggleBook, toggleSave, s
                 </div>
               </div>
             ))}
-            <div style={{ padding: '15px 16px', borderRadius: 16, background: 'var(--green-soft)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ padding: '15px 16px', borderRadius: 16, background: 'var(--orange-soft)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, font: '600 12.5px/1.5 var(--font)', color: 'var(--ink-60)' }}>{course.totalNote}</div>
               <div style={{ font: '800 19px/1 var(--font)', color: 'var(--ink)' }}>{course.costLabel}</div>
             </div>
@@ -125,9 +125,9 @@ function BookButton({ item, isBooked, onClick }: { item: BuiltCourse['items'][nu
   const providerDot = item.provider === '캐치테이블 예약' ? '#E2452F' : '#03C75A'
   return (
     <div className="pl-bookbtn" style={{
-      background: isBooked ? 'var(--green-soft)' : '#fff',
-      borderColor: isBooked ? GREEN : 'var(--ink-15)',
-      color: isBooked ? 'var(--green-deep)' : 'var(--ink)',
+      background: isBooked ? 'var(--orange-soft)' : '#fff',
+      borderColor: isBooked ? ORANGE : 'var(--ink-15)',
+      color: isBooked ? 'var(--orange-deep)' : 'var(--ink)',
     }} onClick={onClick}>
       <span className="pl-bookdot" style={{ background: providerDot }} />
       {isBooked ? '예약 요청됨' : item.provider}
@@ -163,10 +163,10 @@ function RouteMap({ course }: { course: BuiltCourse }) {
   return (
     <>
     <div className="pl-mapwrap">
-      <NaverMap markers={markers} color={GREEN} paths={paths} activeLeg={leg} legOnly />
+      <NaverMap markers={markers} color={ORANGE} paths={paths} activeLeg={leg} legOnly />
       <div className="pl-mapbadges">
         <span className="pl-mapbadge">{course.area}</span>
-        <span className="pl-mapbadge" style={{ color: 'var(--green-press)' }}>{course.moveLine}</span>
+        <span className="pl-mapbadge" style={{ color: 'var(--orange-press)' }}>{course.moveLine}</span>
       </div>
     </div>
       {legs > 1 && (

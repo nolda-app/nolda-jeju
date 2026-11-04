@@ -1,5 +1,5 @@
 import CourseCard, { CourseCardSkeleton } from '../planner/CourseCards'
-import { COND, DEFAULT_COND, GREEN, Q, label as labelOf } from '../planner/data'
+import { COND, DEFAULT_COND, ORANGE, Q, label as labelOf } from '../planner/data'
 import { matchCond } from '../planner/logic'
 import type { BuiltCourse, Taste } from '../planner/logic'
 
@@ -88,7 +88,7 @@ export function SearchTab({ cond, setCond, sheet, setSheetKey, built, filtered, 
                 const on = (cond as any)[sheet.key] === o.v
                 const n = sheet.key === 'people' ? '' : built.filter((c) => matchCond(c, { ...cond, [sheet.key]: o.v } as any)).length
                 return (
-                  <div key={String(o.v)} className="pl-sheetopt" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }}
+                  <div key={String(o.v)} className="pl-sheetopt" style={{ background: on ? ORANGE : '#fff', borderColor: on ? ORANGE : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }}
                     onClick={() => { setCond((st) => ({ ...st, [sheet.key]: o.v })); setSheetKey(null) }}>
                     {o.l}{n !== '' && <span style={{ marginLeft: 7, opacity: 0.55, fontWeight: 500 }}>{n}</span>}
                   </div>

@@ -1,4 +1,4 @@
-import { FIXED_Q_KEYS, GREEN, Q, label as labelOf } from '../planner/data'
+import { FIXED_Q_KEYS, ORANGE, Q, label as labelOf } from '../planner/data'
 import { hourBucket } from '../planner/logic'
 import type { Picks, Report, Taste } from '../planner/logic'
 import type { TasteTopic } from '../planner/api'
@@ -57,7 +57,7 @@ export function SummaryScreen({ report, taste, setTaste, tags, setTags, picks, s
 
         {report.highlights.length > 0 && (
           <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {report.highlights.map((h) => <span key={h} className="pl-tag-mini" style={{ background: 'var(--green-soft)', color: '#0C5A42' }}>{h}</span>)}
+            {report.highlights.map((h) => <span key={h} className="pl-tag-mini" style={{ background: 'var(--orange-soft)', color: '#0C5A42' }}>{h}</span>)}
           </div>
         )}
 
@@ -147,7 +147,7 @@ function HourRange({ range: [start, end], onChange }: { range: [number, number];
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ font: '800 17px/1.2 var(--font)', letterSpacing: '-.02em', color: 'var(--ink)' }}>{hourText(start)} ~ {hourText(end)}</span>
-        <span style={{ font: '600 12.5px/1 var(--font)', color: GREEN }}>{end - start}시간 · {labelOf(Q[2].opts, bucket)}</span>
+        <span style={{ font: '600 12.5px/1 var(--font)', color: ORANGE }}>{end - start}시간 · {labelOf(Q[2].opts, bucket)}</span>
       </div>
       <div className="pl-range">
         <div className="pl-range-track" />
@@ -188,7 +188,7 @@ function BudgetSlider({ value, onChange }: { value: number; onChange: (v: number
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <span style={{ font: '800 17px/1.2 var(--font)', letterSpacing: '-.02em', color: 'var(--ink)' }}>{text}</span>
-        <span style={{ font: '600 12.5px/1 var(--font)', color: GREEN }}>{unlimited ? '끝까지 밀면 제한 없음' : '코스 전체 1인 기준'}</span>
+        <span style={{ font: '600 12.5px/1 var(--font)', color: ORANGE }}>{unlimited ? '끝까지 밀면 제한 없음' : '코스 전체 1인 기준'}</span>
       </div>
       <div className="pl-range">
         <div className="pl-range-track" />
@@ -218,7 +218,7 @@ function BudgetSlider({ value, onChange }: { value: number; onChange: (v: number
 
 function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
-    <div className="pl-chip" style={{ background: on ? GREEN : '#fff', borderColor: on ? GREEN : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }} onClick={onClick}>
+    <div className="pl-chip" style={{ background: on ? ORANGE : '#fff', borderColor: on ? ORANGE : 'var(--ink-10)', color: on ? '#fff' : 'var(--ink-2)' }} onClick={onClick}>
       {label}
     </div>
   )

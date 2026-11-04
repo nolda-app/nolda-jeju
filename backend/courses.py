@@ -21,7 +21,7 @@ MAX_LEG_M = 2000  # 도보 한 구간 최대 (직선×1.3 추정)
 KST = timezone(timedelta(hours=9))
 log = logging.getLogger(__name__)
 COURSE_KINDS = ["식사", "카페", "한잔", "체험", "문화", "산책"]
-TINTS = ["#00A46E", "#8FBF2E", "#00795A", "#4FA3A5"]
+TINTS = ["#FF843A", "#8FBF2E", "#00795A", "#4FA3A5"]
 TAGS = ["전시", "야경", "사진", "로컬", "기록", "자연"]
 # 데이터로 확인할 수 없는 평가·혼잡도 표현 — 프롬프트로 막아도 새어 나와서 서버에서 한 번 더 거름
 UNVERIFIED = re.compile(r"인기|유명|맛집|한적|붐비지|웨이팅")

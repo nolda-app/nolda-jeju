@@ -9,7 +9,7 @@ import { fetchWalk } from './api'
 import type { WalkRoute } from './api'
 import type { BuiltCourse } from './logic'
 
-const GREEN = '#00A46E'
+const ORANGE = '#FF843A'
 const NEAR_M = 60 // 이 거리 안이면 '근처에 도착' 표시
 const WALK_M_PER_MIN = 75
 const OFFROUTE_M = 50 // 경로에서 이만큼 벗어나면 재탐색
@@ -151,7 +151,7 @@ export default function LiveCourse({ course, isSaved, toggleSave, onClose }: {
   return (
     <div className={'pl-live' + (navigating ? ' navigating' : '')} role="dialog" aria-label={`${course.title} 코스 진행`}>
       <NaverMap
-        className="pl-livemap" markers={markers} color={GREEN} arrived={allPinned ? arrived : undefined}
+        className="pl-livemap" markers={markers} color={ORANGE} arrived={allPinned ? arrived : undefined}
         // 방금 떠난 장소 → 다음 목적지 구간만 진하게 (아직 첫 장소로 가는 중이면 강조 없음)
         paths={walkPaths} activeLeg={arrived > 0 ? arrived - 1 : null} me={me} focus={focus}
         live={near ? null : route?.path}
@@ -208,7 +208,7 @@ export default function LiveCourse({ course, isSaved, toggleSave, onClose }: {
                   {arrived === 0 ? '첫 목적지' : '다음 목적지'} {arrived + 1}/{total} · {next.time} 도착 예정
                 </div>
                 <div className="pl-live-name">{next.name}</div>
-                <div className="pl-live-meta" style={{ color: near ? GREEN : geo.status === 'error' ? '#C0492F' : undefined }}>{locLine}</div>
+                <div className="pl-live-meta" style={{ color: near ? ORANGE : geo.status === 'error' ? '#C0492F' : undefined }}>{locLine}</div>
               </div>
             </div>
             {next.hasMove && <div className="pl-live-move">이전 장소에서 {next.moveLabel}{next.moveDetail ? ` · ${next.moveDetail}` : ''}</div>}
