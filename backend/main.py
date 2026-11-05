@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from fastapi import FastAPI, Header, HTTPException  # noqa: E402
+from fastapi import FastAPI, Header, HTTPException, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402
@@ -40,6 +40,10 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/debug-cors")
+def debug_cors(request: Request):
+    return {"origin": request.headers.get("origin"), "cors_origins": os.getenv("CORS_ORIGINS")}
 
 
 @app.get("/places")
