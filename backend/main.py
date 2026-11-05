@@ -28,7 +28,7 @@ app = FastAPI(title="NOLDA API")
 app.add_middleware(GZipMiddleware, minimum_size=1000)  # /places 같은 큰 목록을 압축 (1.5MB → 수백 KB)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")],
     # Vercel 프리뷰 배포는 매번 해시가 바뀐 주소(frontend-<hash>-<team>.vercel.app)를 쓰므로
     # CORS_ORIGINS 고정 목록만으로는 못 맞춘다. 같은 프로젝트/팀의 프리뷰 도메인은 정규식으로 허용.
     allow_origin_regex=os.getenv("CORS_ORIGIN_REGEX"),
