@@ -21,6 +21,8 @@ from courses import CoursePlanError, CourseRequest, generate_courses  # noqa: E4
 from places import load_places, place_details  # noqa: E402
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+_cors = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+print(f"[CORS] allow_origins={_cors}", flush=True)
 
 app = FastAPI(title="NOLDA API")
 app.add_middleware(GZipMiddleware, minimum_size=1000)  # /places 같은 큰 목록을 압축 (1.5MB → 수백 KB)
