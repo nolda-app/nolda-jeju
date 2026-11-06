@@ -39,7 +39,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "v": "cors-wildcard"}
 
 @app.get("/debug-cors")
 def debug_cors(request: Request):
