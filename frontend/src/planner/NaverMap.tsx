@@ -89,7 +89,7 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
       setMap(m)
     }).catch((e) => { console.error('[NaverMap]', e); if (!dead) setErr('지도를 불러오지 못했어요') })
 
-    return () => { dead = true; setMap(null); m?.destroy?.() }
+    return () => { dead = true; setMap(null); try { m?.destroy?.() } catch { /* naver SDK bug */ } }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, paths])
 
@@ -97,6 +97,7 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
   useEffect(() => {
     if (!map) return
     const nv = (window as any).naver
+    if (!nv?.maps) return
     const pts = markers.map((mk) => new nv.maps.LatLng(mk.lat, mk.lng))
     const walk: any[][] | null = paths && paths.length === pts.length - 1
       ? paths.map((seg) => seg.map(([lat, lng]) => new nv.maps.LatLng(lat, lng)))
@@ -140,6 +141,7 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
   useEffect(() => {
     if (!map) return
     const nv = (window as any).naver
+    if (!nv?.maps) return
     const picked = activeLeg !== null && activeLeg !== undefined
     const shown = picked && legOnly
       ? markers.map((mk, i) => ({ mk, i })).filter(({ i }) => i === activeLeg || i === activeLeg! + 1)
@@ -155,6 +157,7 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
   useEffect(() => {
     if (!map || !me) return
     const nv = (window as any).naver
+    if (!nv?.maps) return
     const dot = new nv.maps.Marker({
       map, position: new nv.maps.LatLng(me.lat, me.lng), zIndex: 100,
       icon: {
@@ -168,6 +171,7 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
   useEffect(() => {
     if (!map || !live || live.length < 2) return
     const nv = (window as any).naver
+    if (!nv?.maps) return
     const path = live.map(([lat, lng]) => new nv.maps.LatLng(lat, lng))
     const under = new nv.maps.Polyline({
       map, path, strokeColor: '#fff', strokeWeight: 11, strokeOpacity: 0.95,
@@ -182,7 +186,9 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
 
   useEffect(() => {
     if (!map || !focus) return
-    map.panTo(new (window as any).naver.maps.LatLng(focus.lat, focus.lng))
+    const nv = (window as any).naver
+    if (!nv?.maps) return
+    map.panTo(new nv.maps.LatLng(focus.lat, focus.lng))
   }, [map, focus])
 
   if (err) return <div className={`${className} pl-routemap-fallback`}>{err}</div>
