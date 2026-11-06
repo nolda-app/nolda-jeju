@@ -10,7 +10,8 @@ export function loadPlaces(): Promise<void> {
       if (!BASE) throw new Error('VITE_API_BASE_URL이 설정되지 않았어요')
       const res = await fetch(`${BASE}/places`)
       if (!res.ok) throw new Error(`장소 불러오기 실패 (HTTP ${res.status})`)
-      for (const p of (await res.json()) as Place[]) placeIndex.set(p.id, p)
+      for (const p of (await res.json()) as Place[])
+        if (p.lat >= 33 && p.lat < 34) placeIndex.set(p.id, p)
     })().catch((e) => { loading = null; throw e })
   }
   return loading
