@@ -110,7 +110,8 @@ def load_places() -> tuple[dict, ...]:
         "img": r.get("image_url") or image_urls().get(r["id"]),
         "pop": popularity().get(r["id"], {}).get("pop", 0.0),
         "local": popularity().get(r["id"], {}).get("local"),
-    } for r in rows if r["lat"] is not None and r["lng"] is not None and r["kind"])
+    } for r in rows if r["lat"] is not None and r["lng"] is not None and r["kind"]
+       and REGION_LAT[0] <= float(r["lat"]) < REGION_LAT[1])
 
 
 @lru_cache(maxsize=1)
