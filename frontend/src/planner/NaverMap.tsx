@@ -90,8 +90,9 @@ export default function NaverMap({ markers, color, paths, activeLeg, legOnly = f
     }).catch((e) => { console.error('[NaverMap]', e); if (!dead) setErr('지도를 불러오지 못했어요') })
 
     return () => { dead = true; setMap(null); try { m?.destroy?.() } catch { /* naver SDK bug */ } }
+    // paths는 도보경로 fetch 후 변경되므로 의존성에서 제외 — 경로선은 아래 별도 effect가 처리
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markers, paths])
+  }, [markers])
 
   // 경로선 — 강조 구간이 바뀌면 선만 다시 그린다 (지도는 그대로)
   useEffect(() => {
