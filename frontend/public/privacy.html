@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>개인정보처리방침 · NOLDA</title>
+<link rel="icon" href="/favicon.png" />
+<style>
+  :root { --orange: #FF843A; --ink: #141821; --bg: #FAF8F3; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.75 Pretendard, -apple-system, "Noto Sans KR", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 36px 0 8px; padding-top: 8px; border-top: 1px solid rgba(20,24,33,.1); }
+  .meta { color: rgba(20,24,33,.55); font-size: 13px; }
+  .box { background: #fff; border-left: 4px solid var(--orange); padding: 12px 16px; border-radius: 8px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+  th, td { border: 1px solid rgba(20,24,33,.12); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #FFEEE2; white-space: nowrap; }
+  a { color: #B8480C; }
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<h1>NOLDA 개인정보처리방침</h1>
+<p class="meta">시행일: 2026년 11월 6일 · 운영자: {{운영자명}} · 문의: {{문의 이메일}}</p>
+
+<p>{{운영자명}}(이하 "운영자")은 AI 제주 여가 코스 추천 서비스 NOLDA(놀다, <a href="{{서비스 주소}}">{{서비스 주소}}</a>, 이하 "서비스")를 제공하며, 이용자의 개인정보를 소중히 다루고 「개인정보 보호법」 등 관련 법령을 지킵니다. 이 방침은 서비스가 어떤 정보를 어떻게 쓰는지 알려드립니다.</p>
+
+<div class="box">
+  <strong>Google 사용자 데이터에 관한 고지 (Google API Services User Data Policy)</strong><br />
+  NOLDA's use and transfer to any other app of information received from Google APIs will adhere to the
+  <a href="https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes">Google API Services User Data Policy</a>,
+  including the Limited Use requirements.<br />
+  NOLDA는 Google API를 통해 받은 정보를 사용·이전할 때 Limited Use(제한적 사용) 요건을 포함한 Google API 서비스 사용자 데이터 정책을 준수합니다.
+</div>
+
+<h2>1. 수집하는 정보와 이용 목적</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>구분</th><th>수집 항목</th><th>이용 목적</th></tr>
+  <tr>
+    <td>Google 로그인</td>
+    <td>Google 계정 고유 ID, 이메일, 이름, 프로필 사진 (권한: <code>openid email profile</code>)</td>
+    <td>회원 식별, 로그인, 저장한 코스 관리</td>
+  </tr>
+  <tr>
+    <td>카카오 로그인</td>
+    <td>카카오 계정 고유 ID, 이메일</td>
+    <td>회원 식별, 로그인, 저장한 코스 관리</td>
+  </tr>
+  <tr>
+    <td>YouTube 취향 분석<br />(이용자가 선택한 경우에만)</td>
+    <td>좋아요를 누른 동영상(최대 200개)의 제목·채널명·카테고리·태그·주제, 구독 중인 채널(최대 200개)의 이름·설명 일부<br />(권한: <code>https://www.googleapis.com/auth/youtube.readonly</code>, 읽기 전용)</td>
+    <td>여행·여가 취향(분위기, 활동성, 선호 메뉴 등)을 분석해 이용자에게 보여주고, 그 취향에 맞는 코스를 추천</td>
+  </tr>
+  <tr>
+    <td>사진 취향 분석<br />(이용자가 선택한 경우에만)</td>
+    <td>이용자가 직접 고른 사진(최대 12장, 기기에서 축소) 및 사진의 촬영 시각·동네 정보</td>
+    <td>자주 가는 장소 유형과 시간대를 파악해 코스 추천에 반영</td>
+  </tr>
+  <tr>
+    <td>서비스 이용</td>
+    <td>생성·저장한 코스, 코스 요청 조건(지역·시간·인원·예산), 기기·브라우저 정보 등 접속 기록</td>
+    <td>코스 생성·저장, 서비스 안정 운영과 오류 확인</td>
+  </tr>
+</table>
+</div>
+
+<h2>2. YouTube(Google) 데이터의 처리</h2>
+<ul>
+  <li><strong>이용자가 직접 연결을 선택했을 때만</strong> YouTube 읽기 전용 권한을 요청합니다. 동영상 업로드·수정·삭제, 댓글, 구독 변경 등 이용자의 YouTube 계정을 바꾸는 기능은 사용하지 않습니다.</li>
+  <li>1회 분석 방식입니다. 분석이 끝나면 <strong>Google 접근 토큰은 즉시 폐기하고 저장하지 않으며</strong>, 이후 이용자의 YouTube 데이터에 다시 접근하지 않습니다.</li>
+  <li>분석 결과(취향 요약과 대표 채널·영상 제목 일부)는 서버 메모리에만 임시로 보관하며 <strong>데이터베이스에 저장하지 않습니다.</strong> 서버가 재시작되면 삭제됩니다.</li>
+  <li>YouTube 데이터는 <strong>이용자에게 취향 분석 결과를 보여주고 코스를 추천하는 기능을 제공하는 목적으로만</strong> 사용합니다. 광고(개인 맞춤 광고 포함)에 사용하지 않으며, 판매하거나 데이터 중개업자·광고 플랫폼 등에 제공하지 않습니다.</li>
+  <li>Google 사용자 데이터를 일반적인(범용) AI·머신러닝 모델을 개발하거나 학습시키는 데 사용하지 않습니다.</li>
+  <li>운영자의 직원이 이용자의 YouTube 데이터를 열람하는 일은 없습니다. 다만 ① 이용자가 특정 내용을 열람하도록 동의한 경우, ② 보안 사고 조사 등 보안상 필요한 경우, ③ 법령 준수에 필요한 경우는 예외입니다.</li>
+  <li>이용자는 언제든 권한을 거둘 수 있습니다. <a href="https://myaccount.google.com/permissions">Google 계정 &gt; 보안 &gt; 서드파티 앱 및 서비스 액세스</a>에서 NOLDA를 선택해 접근을 삭제하세요.</li>
+</ul>
+
+<h2>3. 개인정보의 제3자 제공·처리 위탁 및 국외 이전</h2>
+<p>운영자는 이용자의 개인정보를 판매하거나 광고 목적으로 제공하지 않습니다. 서비스 제공에 필요한 범위에서만 아래 업체의 서비스를 이용합니다.</p>
+<div class="table-wrap">
+<table>
+  <tr><th>받는 자</th><th>이전 국가</th><th>항목</th><th>목적·보유 기간</th></tr>
+  <tr>
+    <td>OpenAI, L.L.C. (AI 분석, OpenAI API)</td>
+    <td>미국</td>
+    <td>취향 분석 요청 시: 대표 채널명·구독 채널명·좋아요 동영상 제목 일부(각 최대 20개 안팎), 이용자가 고른 사진(축소본)과 촬영 시각·동네. 코스 생성 요청 시: 취향 요약과 요청 조건</td>
+    <td>취향 분석과 코스 생성 결과를 만들기 위해 이용 시점에 API로 전송합니다. 운영자는 이를 모델 학습 용도로 제공하지 않으며, OpenAI는 자체 정책에 따라 API 요청 기록을 일정 기간(오남용 방지 목적) 보관할 수 있습니다.</td>
+  </tr>
+  <tr>
+    <td>Supabase (데이터베이스 호스팅)</td>
+    <td>{{Supabase 리전 국가}}</td>
+    <td>회원 정보(ID, 이메일, 닉네임, 프로필 사진 주소), 생성·저장한 코스</td>
+    <td>회원 관리와 저장한 코스 제공 · 회원 탈퇴(삭제 요청) 시까지</td>
+  </tr>
+  <tr>
+    <td>Vercel 등 호스팅 사업자</td>
+    <td>미국 등</td>
+    <td>접속 기록(IP 주소, 기기·브라우저 정보)</td>
+    <td>서비스 제공과 오류 확인 · 사업자 정책에 따른 기간</td>
+  </tr>
+</table>
+</div>
+<p>이전은 서비스 이용 시 네트워크를 통해 이루어집니다. 국외 이전을 원하지 않으시면 YouTube·사진 취향 분석을 선택하지 않고 서비스를 이용하실 수 있으며, 이전된 정보의 삭제는 아래 문의처로 요청하실 수 있습니다.</p>
+
+<h2>4. 보유 및 이용 기간, 파기</h2>
+<ul>
+  <li>회원 정보와 저장한 코스: 회원 탈퇴 또는 삭제 요청 시까지 보관하고 지체 없이 파기합니다.</li>
+  <li>YouTube 분석 결과: 위 2항과 같이 서버 메모리에만 임시 보관되며 서버 재시작 시 삭제됩니다. Google 접근 토큰은 보관하지 않습니다.</li>
+  <li>사진: 기기에서 축소한 뒤 분석 요청에 한 번만 쓰이며, 원본과 축소본 모두 서버에 저장하지 않습니다.</li>
+  <li>관련 법령에서 보관을 요구하는 정보는 해당 기간 동안 분리해 보관한 뒤 파기합니다.</li>
+  <li>전자적 파일은 복구할 수 없는 방법으로 삭제합니다.</li>
+</ul>
+
+<h2>5. 이용자의 권리</h2>
+<p>이용자는 언제든지 자신의 개인정보를 열람·정정·삭제하거나 처리 정지를 요청할 수 있고, 회원 탈퇴와 Google·카카오 연동 해제를 할 수 있습니다. {{문의 이메일}}로 요청하시면 지체 없이 조치하고 결과를 알려드립니다.</p>
+
+<h2>6. 안전성 확보 조치</h2>
+<ul>
+  <li>모든 통신은 HTTPS로 암호화됩니다.</li>
+  <li>로그인 정보는 비밀번호를 저장하지 않고 Google·카카오 인증을 이용하며, 서비스 세션은 서명된 토큰으로 관리합니다.</li>
+  <li>API 키와 비밀 값은 서버 환경변수로만 관리하고, 데이터베이스 접근 권한을 최소한의 담당자로 제한합니다.</li>
+</ul>
+
+<h2>7. 쿠키 및 브라우저 저장소</h2>
+<p>로그인 상태, 분석 진행 상태, 저장한 코스를 유지하기 위해 브라우저 저장소(localStorage 등)를 사용합니다. 브라우저 설정에서 삭제할 수 있으며, 삭제하면 로그인이 해제될 수 있습니다. 광고·추적 목적의 쿠키는 사용하지 않습니다.</p>
+
+<h2>8. 아동의 개인정보</h2>
+<p>서비스는 만 14세 미만 아동을 대상으로 하지 않으며, 만 14세 미만 아동의 개인정보를 알면서 수집하지 않습니다.</p>
+
+<h2>9. 개인정보 보호책임자·문의</h2>
+<p>개인정보 보호책임자: {{운영자명}}<br />이메일: {{문의 이메일}}</p>
+<p>개인정보 침해에 대한 신고·상담은 개인정보침해신고센터(privacy.kisa.or.kr, 국번 없이 118), 개인정보분쟁조정위원회(kopico.go.kr, 1833-6972) 등에 문의하실 수 있습니다.</p>
+
+<h2>10. 방침의 변경</h2>
+<p>내용이 바뀌면 시행 7일 전부터 이 페이지에 공지합니다. 수집 항목이나 이용 목적이 이용자에게 불리하게 바뀌거나 Google 사용자 데이터의 이용 범위가 달라지는 경우에는 서비스 안에서 다시 동의를 받습니다.</p>
+
+<p class="meta">이용약관은 <a href="/terms.html">서비스 이용약관</a>에서 확인하실 수 있습니다.</p>
+</main>
+</body>
+</html>
