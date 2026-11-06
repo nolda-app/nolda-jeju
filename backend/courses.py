@@ -448,13 +448,13 @@ def other_orders(raw: dict, refs: dict[str, dict], limit: int = 30) -> list[list
     return [[items[i] for i in perm] for _, perm in sorted(found)[:limit]]
 
 
-def to_course(index: int, raw: dict, refs: dict[str, dict], req: CourseRequest, source: str = "taste", reasons: list[str] | None = None) -> dict | None:
+def to_course(index: int, raw: dict, refs: dict[str, dict], req: CourseRequest, source: str = "taste", reasons: list[str] | None = None, valid_areas: set[str] | None = None) -> dict | None:
     """검증 + 순서 문제로 떨어지면 방문 순서를 바꿔 한 번 더 (좋은 장소 조합을 버리지 않게)"""
     why: list[str] = []
-    course = _check_course(index, raw, refs, req, source, why)
+    course = _check_course(index, raw, refs, req, source, why, valid_areas)
     if course is None and why and why[0] in ORDER_REASONS:
         for items in other_orders(raw, refs):
-            course = _check_course(index, {**raw, "items": items}, refs, req, source, [])
+            course = _check_course(index, {**raw, "items": items}, refs, req, source, [], valid_areas)
             if course:
                 course["reordered"] = True
                 break
@@ -468,11 +468,13 @@ def wanted_kinds(req: CourseRequest) -> set[str]:
     return {k for v in (req.intent, req.taste.mood, req.taste.spend) if v for k in TASTE_KINDS.get(v, [])}
 
 
-def _check_course(index: int, raw: dict, refs: dict[str, dict], req: CourseRequest, source: str = "taste", reasons: list[str] | None = None) -> dict | None:
+def _check_course(index: int, raw: dict, refs: dict[str, dict], req: CourseRequest, source: str = "taste", reasons: list[str] | None = None, valid_areas: set[str] | None = None) -> dict | None:
     """LLM 코스 1개 검증 → 프론트 Course 형태. 규칙 위반이면 None.
     source: taste(취향 맞춤 — 취향 종류가 하나도 없으면 탈락) | db(추가 추천 — 취향 검사 안 함)"""
     cond, w = req.cond, req.time_window
     lo, hi = place_range(req)
+    if valid_areas and raw.get("area") not in valid_areas:
+        return _reject(reasons, f"허용되지 않은 지역: {raw.get('area')}")
     places = [refs.get(it["ref"]) for it in raw["items"]]
     if not lo <= len(places) <= hi or None in places or len({p["id"] for p in places}) != len(places):
         return _reject(reasons, "장소 수·없는 장소·중복")
@@ -675,8 +677,9 @@ def _llm_courses(model: str, req: CourseRequest, areas: list[str], refs: dict[st
     """LLM 한 번 호출 → 검증 통과 코스들 (have와 id가 겹치지 않는 것만), 탈락 수"""
     messages = build_messages(req, areas, refs, fill=source == "db")
     out, rejected = [], 0
+    valid_areas = set(areas)
     for raw in _call_llm(model, messages, plan_schema(areas)).get("courses", []):
-        course = to_course(start_index + len(out), raw, refs, req, source, reasons)
+        course = to_course(start_index + len(out), raw, refs, req, source, reasons, valid_areas)
         if course is None:
             rejected += 1
         elif all(course["id"] != c["id"] for c in have + out):
