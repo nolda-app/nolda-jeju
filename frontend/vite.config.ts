@@ -14,6 +14,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
+        // 정적 약관 페이지는 SPA 셸(index.html)로 대체되면 안 된다 (구글 OAuth 심사 링크)
+        navigateFallbackDenylist: [/^\/(privacy|terms)\.html$/],
         runtimeCaching: [{
           // 장소 목록 — 캐시를 먼저 보여주고 뒤에서 갱신 (서버가 잠들어 있어도 홈이 바로 뜬다)
           urlPattern: ({ url }) => url.pathname === '/places',
