@@ -281,7 +281,7 @@ def evidence_lines(scores: dict, ph: dict, yt: dict, weights: dict, n_photo: int
         if axis in yt:
             parts.append(f"유튜브 {n_yt}개 {round(yt[axis].get(top, 0) * 100)}%")
         mix = " · ".join(parts) or "근거 부족"
-        out[axis] = f"{label} {round(vals[top] * 100)}% ({mix}, 가중치 사진 {weights['photo']} / 유튜브 {weights['youtube']})"
+        out[axis] = f"{label} {round(vals[top] * 100)}% ({mix})"
     return out
 
 
