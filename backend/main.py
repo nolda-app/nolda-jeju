@@ -35,7 +35,12 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    import subprocess, sys
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+    except Exception:
+        rev = "unknown"
+    return {"status": "ok", "rev": rev}
 
 
 @app.get("/places")
