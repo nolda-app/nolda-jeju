@@ -21,11 +21,11 @@ services:
 
       # 카카오/구글 개발자 콘솔의 리디렉션 URI도 아래와 동일하게 등록해야 함
       - key: KAKAO_REDIRECT_URI
-        value: https://nolda-backend.onrender.com/auth/login/kakao/callback
+        value: https://nolda-backend-dx83.onrender.com/auth/login/kakao/callback
       - key: GOOGLE_LOGIN_REDIRECT_URI
-        value: https://nolda-backend.onrender.com/auth/login/google/callback
+        value: https://nolda-backend-dx83.onrender.com/auth/login/google/callback
       - key: GOOGLE_REDIRECT_URI
-        value: https://nolda-backend.onrender.com/auth/youtube/callback
+        value: https://nolda-backend-dx83.onrender.com/auth/youtube/callback
 
       # 대시보드에서 직접 입력할 값들 (Secret — 레포에 값 저장 안 함)
       - key: OPENAI_API_KEY
